@@ -1,8 +1,95 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center">Welcome {{ name }}</h2>
-    <a href="/search_products" class="btn btn-secondary">Browse Products</a>
-    <a href="/rent_product" class="btn btn-primary">Rent Items</a>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar text-white p-3">
+            <h4 class="text-center">Dashboard</h4>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a href="{% url 'browse_rentals' %}" class="nav-link text-white"><i class="fas fa-tshirt"></i> Browse Rentals</a></li>
+                <li class="nav-item"><a href="{% url 'payments' %}" class="nav-link text-white"><i class="fas fa-credit-card"></i> Payments</a></li>
+                <li class="nav-item"><a href="{% url 'rental_history' %}" class="nav-link text-white"><i class="fas fa-history"></i> Rental History</a></li>
+                <li class="nav-item"><a href="{% url 'chatbot_assistance' %}" class="nav-link text-white"><i class="fas fa-comments"></i> Chatbot Assistance</a></li>
+                <li class="nav-item"><a href="{% url 'feedback' %}" class="nav-link text-white"><i class="fas fa-star"></i> Feedback</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h2>Welcome, {{ user.username }}!</h2>
+            </div>
+
+            <!-- Quick Filters & Categories -->
+            <div class="row my-4">
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <i class="fas fa-male fa-2x"></i>
+                        <a href="{% url 'mens_wear' %}" class="stretched-link">Men's Wear</a>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <i class="fas fa-female fa-2x"></i>
+                        <a href="{% url 'womens_wear' %}" class="stretched-link">Women's Wear</a>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <i class="fas fa-child fa-2x"></i>
+                        <a href="{% url 'kids_wear' %}" class="stretched-link">Kids' Wear</a>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <i class="fas fa-tag fa-2x"></i>
+                        <a href="{% url 'discounted_rentals' %}" class="stretched-link">Discounted Rentals</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payments Section -->
+            <div id="payments" class="my-4">
+                <h3>Make Payments</h3>
+                <p>Securely process your rental transactions.</p>
+                <a href="{% url 'payments' %}" class="btn btn-success"><i class="fas fa-credit-card"></i> Proceed to Payment</a>
+            </div>
+
+            <!-- Chatbot Assistance -->
+            <div id="chatbot" class="my-4">
+                <h3>Chatbot Assistance</h3>
+                <p>Ask about rentals, payments, and order status.</p>
+                <a href="{% url 'chatbot_assistance' %}" class="btn btn-primary"><i class="fas fa-comments"></i> Open Chatbot</a>
+            </div>
+
+            <!-- Feedback Section -->
+            <div id="feedback" class="my-4">
+                <h3>Rate & Provide Feedback</h3>
+                <form action="{% url 'feedback' %}" method="POST">
+                    {% csrf_token %}
+                    <textarea class="form-control" name="feedback" placeholder="Share your experience..."></textarea>
+                    <button type="submit" class="btn btn-warning mt-2"><i class="fas fa-paper-plane"></i> Submit Feedback</button>
+                </form>
+            </div>
+        </main>
+    </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+function updateDashboard() {
+    $.ajax({
+        url: "{% url 'customer_dashboard' %}",
+        type: "GET",
+        success: function (data) {
+            $("#rental-list").html($(data).find("#rental-list").html());
+            $("#product-list").html($(data).find("#product-list").html());
+        }
+    });
+}
+setInterval(updateDashboard, 5000);
+</script>
+
 {% endblock %}

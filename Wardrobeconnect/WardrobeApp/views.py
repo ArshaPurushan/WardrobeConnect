@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.core.files.storage import default_storage
 from django.utils.timezone import now
-from .models import UserProfile, Login, Product, Category, Booking, Feedback, Complaint, Employee, Admin  
+from .models import UserProfile, Login, Product, Category, Booking, Feedback, Complaint, Employee, Admin ,Rental 
 from .forms import ProductForm, EmployeeForm
 import os
 
@@ -96,13 +96,9 @@ def login_view(request):
         # Debugging: Print username and password (Remove in production)
         print(f"Trying to log in with Username: {username}, Password: {password}")
 
-        # Check if user is in Admin table
+        # Check Admin Table
         try:
             admin = Admin.objects.get(username=username)
-
-            # Debugging: Print retrieved password
-            print(f"Admin Found. Stored Password: {admin.password}")
-
             if admin.password == password:  # Plain text comparison
                 request.session["username"] = admin.username
                 request.session["user_type"] = "admin"
@@ -111,23 +107,16 @@ def login_view(request):
             else:
                 messages.error(request, "Invalid password.")
                 return redirect("login")
-
         except Admin.DoesNotExist:
-            print("Admin not found")  # Debugging
-            pass  # Continue checking in Login model
+            pass  # Continue checking other tables
 
-        # Check if user exists in the Login model
+        # Check Login Table
         try:
             user = Login.objects.get(username=username)
-
-            # Debugging: Print retrieved password
-            print(f"User Found. Stored Password: {user.password}")
-
             if user.password == password:  # Plain text comparison
                 request.session["username"] = user.username
                 request.session["user_type"] = user.types
                 messages.success(request, f"{user.types.capitalize()} login successful!")
-
                 if user.types == "admin":
                     return redirect("admin_dashboard")
                 elif user.types == "employee":
@@ -137,13 +126,26 @@ def login_view(request):
             else:
                 messages.error(request, "Invalid password.")
                 return redirect("login")
-
         except Login.DoesNotExist:
-            print("User not found")  # Debugging
+            pass  # Continue checking Employee table
+
+        # Check Employee Table
+        try:
+            employee = Employee.objects.get(username=username)
+            if employee.password == password:  # Plain text comparison
+                request.session["username"] = employee.username
+                request.session["user_type"] = "employee"
+                messages.success(request, "Employee login successful!")
+                return redirect("employee_dashboard")
+            else:
+                messages.error(request, "Invalid password.")
+                return redirect("login")
+        except Employee.DoesNotExist:
             messages.error(request, "Invalid username or password.")
             return redirect("login")
 
     return render(request, "login.html")
+
 
 # ==============================
 #       DASHBOARDS
@@ -152,12 +154,38 @@ def login_view(request):
 def admin_dashboard(request):
     return render(request, "admin_dashboard.html")
 
+@login_required
 def employee_dashboard(request):
-    return render(request, "employee_dashboard.html")
+    if request.session.get("user_type") != "employee":
+        return redirect("login")  # Restrict access if not an employee
 
+    return render(request, "employee_dashboard.html")  # Render dashboard template
+
+@login_required
 def customer_dashboard(request):
-    products = Product.objects.all()
-    return render(request, "customer_dashboard.html", {"products": products})
+    username = request.session.get("username")
+    user_type = request.session.get("user_type")
+
+    if not username or user_type != "user":
+        messages.error(request, "Unauthorized access!")
+        return redirect("login")
+
+    try:
+        user = Login.objects.get(username=username)  # Fetch user
+    except Login.DoesNotExist:
+        messages.error(request, "User not found!")
+        return redirect("login")
+
+    # Fetch available products and rented items
+    products = Product.objects.filter(availability="available")
+    rented_products = Rental.objects.filter(customer=user, status="rented")
+
+    context = {
+        "products": products,
+        "rented_products": rented_products,
+    }
+    return render(request, "customer_dashboard.html", context)
+
 
 # ==============================
 #    EMPLOYEE MANAGEMENT
@@ -223,21 +251,16 @@ def reject_product(request, product_id):
 
 def employee_inventory(request):
     if "username" not in request.session or request.session["user_type"] != "employee":
-        return redirect("login")
-
-    username = request.session["username"]
-    try:
-        employee = Employee.objects.get(logid__username=username)
-        products = Product.objects.all()  # Fetch all products
-    except Employee.DoesNotExist:
         messages.error(request, "Unauthorized access!")
         return redirect("login")
 
+    products = Product.objects.all()
     return render(request, "employee_inventory.html", {"products": products})
 
 
 def employee_add_product(request):
     if "username" not in request.session or request.session["user_type"] != "employee":
+        messages.error(request, "Unauthorized access!")
         return redirect("login")
 
     if request.method == "POST":
@@ -257,7 +280,7 @@ def employee_add_product(request):
             stock=stock,
             description=description,
             image=image,
-            availability="available",  # Default availability
+            availability="available",
         )
         messages.success(request, "Product added successfully!")
         return redirect("employee_inventory")
@@ -268,6 +291,7 @@ def employee_add_product(request):
 
 def delete_product(request, product_id):
     if "username" not in request.session or request.session["user_type"] != "employee":
+        messages.error(request, "Unauthorized access!")
         return redirect("login")
 
     product = get_object_or_404(Product, id=product_id)
@@ -275,18 +299,20 @@ def delete_product(request, product_id):
     messages.success(request, "Product deleted successfully!")
     return redirect("employee_inventory")
 
+
 def update_availability(request, product_id):
     if "username" not in request.session or request.session["user_type"] != "employee":
+        messages.error(request, "Unauthorized access!")
         return redirect("login")
 
     product = get_object_or_404(Product, id=product_id)
 
     if request.method == "POST":
         availability = request.POST.get("availability")
-        if availability in ["available", "rented", "returned"]:
+        if availability in ["available", "rented", "returned", "damaged", "pending"]:
             product.availability = availability
             product.save()
-            messages.success(request, "Product availability updated successfully!")
+            messages.success(request, f"Product availability updated to {availability}.")
 
     return redirect("employee_inventory")
 
@@ -310,27 +336,40 @@ def search_products(request):
 
 def rent_product(request, product_id):
     if "username" not in request.session:
+        messages.error(request, "You must be logged in to rent a product.")
         return redirect("login")
 
-    product = Product.objects.get(id=product_id)
+    product = get_object_or_404(Product, id=product_id)
     user = get_object_or_404(Login, username=request.session["username"])
 
     if request.method == "POST":
-        quantity = int(request.POST.get("quantity", 1))
-        rental_duration = int(request.POST.get("rental_duration", 1))
-        total_price = product.price * quantity * rental_duration  
+        try:
+            quantity = int(request.POST.get("quantity", 1))
+            rental_duration = int(request.POST.get("rental_duration", 1))
 
-        booking = Booking.objects.create(
-            user=user,
-            product=product,
-            quantity=quantity,
-            rental_start_date=now(),
-            rental_end_date=now() + timedelta(days=rental_duration),
-            total_price=total_price,
-            status="Pending"
-        )
+            if quantity < 1 or rental_duration < 1:
+                messages.error(request, "Invalid quantity or rental duration.")
+                return redirect("rent_product", product_id=product.id)
 
-        return redirect("booking_confirmation", booking_id=booking.id)
+            total_price = product.price * quantity * rental_duration
+
+            # Create a Booking entry
+            booking = Booking.objects.create(
+                user=user,
+                product=product,
+                quantity=quantity,
+                rental_start_date=now(),
+                rental_end_date=now() + timedelta(days=rental_duration),
+                total_price=total_price,
+                status="Pending"
+            )
+
+            messages.success(request, "Rental request submitted! Proceed to payment.")
+            return redirect("booking_confirmation", booking_id=booking.id)
+
+        except Exception as e:
+            messages.error(request, f"An error occurred: {str(e)}")
+            return redirect("rent_product", product_id=product.id)
 
     return render(request, "rent_product.html", {"product": product})
 
@@ -342,12 +381,33 @@ def payment_page(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
 
     if request.method == "POST":
-        booking.status = "Paid"
-        booking.save()
-        messages.success(request, "Payment successful! Your rental is confirmed.")
-        return redirect("customer_dashboard")
+        try:
+            # Simulate payment processing (Replace this with actual gateway)
+            payment_status = process_payment(booking.total_price)  # ✅ Add a real payment function
+
+            if payment_status:
+                booking.status = "Paid"
+                booking.save()
+                messages.success(request, "Payment successful! Your rental is confirmed.")
+                return redirect("customer_dashboard")
+            else:
+                messages.error(request, "Payment failed. Try again.")
+                return redirect("payment_page", booking_id=booking.id)
+
+        except Exception as e:
+            messages.error(request, f"Payment processing error: {str(e)}")
+            return redirect("payment_page", booking_id=booking.id)
 
     return render(request, "payment_page.html", {"booking": booking})
+
+def process_payment(amount):
+    """
+    Simulate payment processing. In real-world, integrate with Stripe, PayPal, etc.
+    Returns True if payment is successful, False otherwise.
+    """
+    import random
+    return random.choice([True, False])  # Simulate success/failure
+
 
 # ==============================
 #     FEEDBACK & COMPLAINTS

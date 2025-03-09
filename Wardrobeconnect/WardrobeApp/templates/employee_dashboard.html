@@ -1,7 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center">Employee Dashboard</h2>
-    <a href="/manage_inventory" class="btn btn-warning">Manage Products</a>
+<div class="dashboard-container">
+    <h2>Welcome, {{ request.session.username }}!</h2>
+    <p>Your role: Employee</p>
+
+    <div class="dashboard-menu">
+        <a href="{% url 'employee_inventory' %}" class="dashboard-card">📦 Inventory Management</a>
+    
+    </div>
 </div>
+
+<style>
+.dashboard-container {
+    text-align: center;
+    margin-top: 20px;
+}
+.dashboard-menu {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+.dashboard-card {
+    padding: 15px;
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 10px;
+    font-weight: bold;
+}
+.dashboard-card:hover {
+    background: #0056b3;
+}
+</style>
+
 {% endblock %}
+

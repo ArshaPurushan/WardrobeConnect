@@ -40,7 +40,7 @@ class Employee(models.Model):
     position = models.CharField(max_length=150, default="Employee")
     joined_at = models.DateTimeField(default=now)  # Auto-fill joining date
     status = models.BooleanField(default=True)  # Active status
-    profile_picture = models.ImageField(upload_to="employee_images/", default="default.jpg")
+    profile_picture = models.ImageField(upload_to="employee_images/")
 
     def save(self, *args, **kwargs):
         if not self.username:  # Only generate username if it's empty
@@ -103,24 +103,57 @@ class Product(models.Model):
         return self.name
 
 
-
-#        BOOKING MODEL
-class Booking(models.Model):
-    user = models.ForeignKey(Login, on_delete=models.CASCADE)
+#           RENTAL MODEL
+class Rental(models.Model):
+    customer = models.ForeignKey(Login, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
-    rental_start_date = models.DateTimeField(default=now)
-    rental_end_date = models.DateTimeField(default=now() + timedelta(days=7))  # Default to 7-day rental
-    total_price = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(
-        max_length=20, 
-        choices=[("Pending", "Pending"), ("Paid", "Paid"), ("Completed", "Completed")],
-        default="Pending"
+        max_length=10, 
+        choices=Product.AVAILABILITY_CHOICES, 
+        default="rented"
     )
+    rented_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Booking by {self.user.username} - {self.product.name}"
+        return f"{self.customer.username} rented {self.product.name}"
 
+
+#          BOOKING MODEL
+# Function to set the default rental end date
+def default_rental_end_date():
+    return now() + timedelta(days=7)
+
+class Booking(models.Model):
+    STATUS_CHOICES = [
+        ("Pending", "Pending"),
+        ("Paid", "Paid"),
+        ("Completed", "Completed"),
+        ("Canceled", "Canceled"),
+    ]
+
+    user = models.ForeignKey("Login", on_delete=models.CASCADE)
+    product = models.ForeignKey("Product", on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    rental_duration = models.PositiveIntegerField(default=7)  # Duration in days
+    rental_start_date = models.DateTimeField(default=now)
+    rental_end_date = models.DateTimeField(default=default_rental_end_date)  # ✅ Fixed lambda issue
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # ✅ Added default
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
+
+    def save(self, *args, **kwargs):
+        """Ensure rental_end_date and total_price are correctly calculated before saving."""
+        self.rental_end_date = self.rental_start_date + timedelta(days=self.rental_duration)
+        
+        # Ensure total_price calculation is safe
+        product_price = getattr(self.product, "price", 0)  # Get price safely
+        self.total_price = round(product_price * self.quantity * self.rental_duration, 2)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Booking by {self.user.username} - {self.product.name} ({self.status})"
+    
+    
 #      FEEDBACK MODEL
 class Feedback(models.Model):
     user = models.ForeignKey(Login, on_delete=models.CASCADE)
