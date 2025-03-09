@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Manage Employees</h2>
+
+    <!-- Add Employee Button -->
+    <div class="d-flex justify-content-between mb-3">
+        <h4>Employee List</h4>
+        <a href="{% url 'add_employee' %}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Add Employee
+        </a>
+    </div>
+
+    <!-- Employee Table -->
+    <table class="table table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Username</th>  <!-- Added Username Column -->
+                <th>Email</th>
+                <th>Password</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+            <tr>
+                <td>
+                    {% if employee.image %}
+                        <img src="{{ employee.image.url }}" alt="{{ employee.name }}" width="50" height="50" class="rounded-circle">
+                    {% else %}
+                        <img src="/static/default-profile.png" alt="Default Image" width="50" height="50" class="rounded-circle">
+                    {% endif %}
+                </td>
+                <td>{{ employee.name }}</td>
+                <td>{{ employee.username }}</td>  <!-- Display Username -->
+                <td>{{ employee.email }}</td>
+                <td>
+                    <input type="password" value="{{ employee.password }}" class="form-control" id="password{{ employee.id }}" readonly>
+                    <button class="btn btn-sm btn-secondary mt-1" onclick="togglePassword({{ employee.id }})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+                <td>{{ employee.role }}</td>
+                <td>
+                    <span class="badge bg-{% if employee.status == 'active' %}success{% else %}danger{% endif %}">
+                        {{ employee.get_status_display }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{% url 'edit_employee' employee.id %}" class="btn btn-sm btn-warning">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <a href="{% url 'delete_employee' employee.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this employee?');">
+                        <i class="fas fa-trash"></i> Delete
+                    </a>
+                    <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#employeeDetails{{ employee.id }}">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modals for Employee Details -->
+{% for employee in employees %}
+<div class="modal fade" id="employeeDetails{{ employee.id }}" tabindex="-1" aria-labelledby="employeeDetailsLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Employee Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if employee.image %}
+                    <img src="{{ employee.image.url }}" class="img-fluid mb-3" alt="{{ employee.name }}">
+                {% else %}
+                    <img src="/static/default-profile.png" class="img-fluid mb-3" alt="Default Image">
+                {% endif %}
+                <p><strong>Name:</strong> {{ employee.name }}</p>
+                <p><strong>Username:</strong> {{ employee.username }}</p>  <!-- Display Username in Modal -->
+                <p><strong>Email:</strong> {{ employee.email }}</p>
+                <p><strong>Password:</strong> <span id="modalPassword{{ employee.id }}">••••••••</span>
+                    <button class="btn btn-sm btn-secondary" onclick="toggleModalPassword({{ employee.id }})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </p>
+                <p><strong>Role:</strong> {{ employee.role }}</p>
+                <p><strong>Status:</strong> {{ employee.get_status_display }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- JavaScript to Toggle Password Visibility -->
+<script>
+    function togglePassword(id) {
+        var passwordField = document.getElementById("password" + id);
+        if (passwordField.type === "password") {
+            passwordField.type = "text";
+        } else {
+            passwordField.type = "password";
+        }
+    }
+
+    function toggleModalPassword(id) {
+        var modalPasswordField = document.getElementById("modalPassword" + id);
+        if (modalPasswordField.innerText === "••••••••") {
+            modalPasswordField.innerText = document.getElementById("password" + id).value;
+        } else {
+            modalPasswordField.innerText = "••••••••";
+        }
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">
+        {% if form.instance.id %}
+            Edit Employee
+        {% else %}
+            Add Employee
+        {% endif %}
+    </h2>
+    
+    <div class="card shadow p-4">
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label class="form-label">Name</label>
+                {{ form.name }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                {{ form.email }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                {{ form.password }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Contact Number</label>
+                {{ form.contact_number }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Position</label>
+                {{ form.position }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Status</label>
+                {{ form.status }}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Profile Picture</label>
+                {{ form.profile_picture }}
+            </div>
+
+            {% if form.instance.profile_picture %}
+                <div class="mb-3">
+                    <img src="{{ form.instance.profile_picture.url }}" alt="Profile Picture" class="rounded-circle" width="100">
+                </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-success">
+                {% if form.instance.id %}
+                    Update Employee
+                {% else %}
+                    Save Employee
+                {% endif %}
+            </button>
+
+            <a href="{% url 'manage_employees' %}" class="btn btn-secondary ms-3">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

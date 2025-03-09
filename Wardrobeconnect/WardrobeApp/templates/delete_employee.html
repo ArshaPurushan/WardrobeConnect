@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+    <h2 class="text-danger">Delete Employee</h2>
+    <p class="lead">Are you sure you want to delete <strong>{{ employee.name }}</strong>?</p>
+
+    {% if employee.profile_picture %}
+        <img src="{{ employee.profile_picture.url }}" alt="Employee Photo" class="rounded-circle" width="120">
+    {% endif %}
+
+    <form method="POST" class="mt-4">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Confirm Delete</button>
+        <a href="{% url 'manage_employees' %}" class="btn btn-secondary ms-3">Cancel</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Admin Inventory Management</h2>
+
+<table class="table table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>Image</th>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in products %}
+        <tr>
+            <td>
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" width="80" height="80" class="img-thumbnail">
+            </td>
+            <td>{{ product.name }}</td>
+            <td>{{ product.category.name }}</td>
+            <td>${{ product.price }}</td>
+            <td>{{ product.stock }}</td>
+            <td>
+                <span class="badge bg-{% if product.status == 'approved' %}success
+                                       {% elif product.status == 'pending' %}warning
+                                       {% else %}danger{% endif %}">
+                    {{ product.get_status_display }}
+                </span>
+            </td>
+            <td>
+                {% if product.status == 'pending' %}
+                    <a href="{% url 'approve_product' product.id %}" class="btn btn-sm btn-success">Approve</a>
+                    <a href="{% url 'reject_product' product.id %}" class="btn btn-sm btn-danger">Reject</a>
+                {% endif %}
+                <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#productDetails{{ product.id }}">View</button>
+            </td>
+        </tr>
+
+        <!-- Modal for Product Details -->
+        <div class="modal fade" id="productDetails{{ product.id }}" tabindex="-1" aria-labelledby="productDetailsLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Product Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <img src="{{ product.image.url }}" class="img-fluid mb-3" alt="{{ product.name }}">
+                        <p><strong>Name:</strong> {{ product.name }}</p>
+                        <p><strong>Category:</strong> {{ product.category.name }}</p>
+                        <p><strong>Price:</strong> ${{ product.price }}</p>
+                        <p><strong>Stock:</strong> {{ product.stock }}</p>
+                        <p><strong>Status:</strong> {{ product.get_status_display }}</p>
+                        <p><strong>Description:</strong> {{ product.description }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

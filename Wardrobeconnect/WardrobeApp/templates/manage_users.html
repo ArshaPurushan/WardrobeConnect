@@ -1,0 +1,167 @@
+{% block content %}
+<style>
+    /* Fade-in effect */
+    .fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    h2 {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 20px;
+    }
+
+    /* Back Button */
+    .back-btn {
+        display: inline-block;
+        background: #007bff;
+        color: white;
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-weight: bold;
+        transition: all 0.3s ease-in-out;
+        text-decoration: none;
+        box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .back-btn:hover {
+        background: #0056b3;
+        transform: scale(1.05);
+    }
+
+    /* User Status Navigation */
+    .status-nav {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+
+    .status-btn {
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-weight: bold;
+        text-decoration: none;
+        transition: all 0.3s ease-in-out;
+        color: white;
+    }
+
+    .pending { background: #f0ad4e; }
+    .approved { background: #28a745; }
+    .rejected { background: #dc3545; }
+
+    .status-btn:hover {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+
+    /* Table Styling */
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table th {
+        background: #343a40;
+        color: white;
+        padding: 12px;
+    }
+
+    .table td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .table tr:hover {
+        background: #f8f9fa;
+        transition: all 0.3s ease-in-out;
+    }
+
+    /* Action Buttons */
+    .btn-action {
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        transition: all 0.3s ease-in-out;
+    }
+
+    .btn-action:hover {
+        transform: scale(1.1);
+    }
+</style>
+
+<div class="container mt-5 fade-in">
+    <h2 class="text-center">Manage Users</h2>
+
+    <!-- Back Button -->
+    <div class="text-end mb-3">
+        <a href="{% url 'admin_dashboard' %}" class="back-btn">⬅ Back to Admin Dashboard</a>
+    </div>
+
+    <!-- Status Navigation -->
+    <div class="status-nav">
+        <a href="{% url 'manage_users' status='pending' %}" class="status-btn pending">⏳ Pending Users</a>
+        <a href="{% url 'manage_users' status='approved' %}" class="status-btn approved">✅ Approved Users</a>
+        <a href="{% url 'manage_users' status='rejected' %}" class="status-btn rejected">❌ Rejected Users</a>
+    </div>
+
+    <h4 class="text-center">
+        {% if status == "approved" %} ✅ Approved Users
+        {% elif status == "rejected" %} ❌ Rejected Users
+        {% else %} ⏳ Pending Users
+        {% endif %}
+    </h4>
+
+    {% if users %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if status == "pending" %}
+                                <form action="{% url 'approve_user' user.id %}" method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm btn-action">✔ Approve</button>
+                                </form>
+                                <form action="{% url 'reject_user' user.id %}" method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger btn-sm btn-action">✖ Reject</button>
+                                </form>
+                            {% elif status == "approved" %}
+                                <span class="badge bg-success">✔ Approved</span>
+                            {% elif status == "rejected" %}
+                                <span class="badge bg-danger">✖ Rejected</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-center text-muted">No users found.</p>
+    {% endif %}
+</div>
+{% endblock %}

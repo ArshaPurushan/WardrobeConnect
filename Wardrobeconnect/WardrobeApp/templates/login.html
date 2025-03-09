@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="height: 100vh;">
+    <div class="card shadow p-4" style="width: 100%; max-width: 400px;">
+        <h2 class="text-center mb-3">Login</h2>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" name="username" class="form-control" placeholder="Enter your username" required>
+            </div>
+            
+            <div class="mb-3 position-relative">
+                <label for="password" class="form-label">Password</label>
+                <div class="input-group">
+                    <input type="password" name="password" id="password" class="form-control" placeholder="Enter your password" required>
+                    <button type="button" class="btn btn-outline-secondary" onclick="togglePassword()">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Login</button>
+        </form>
+
+        <p class="text-center mt-3">Don't have an account? 
+            <a href="{% url 'user_register' %}" class="text-decoration-none">Register here</a>
+        </p>
+    </div>
+</div>
+
+<!-- Password toggle script -->
+<script>
+    function togglePassword() {
+        var passwordField = document.getElementById("password");
+        var toggleButton = document.querySelector(".input-group button i");
+        if (passwordField.type === "password") {
+            passwordField.type = "text";
+            toggleButton.classList.remove("bi-eye");
+            toggleButton.classList.add("bi-eye-slash");
+        } else {
+            passwordField.type = "password";
+            toggleButton.classList.remove("bi-eye-slash");
+            toggleButton.classList.add("bi-eye");
+        }
+    }
+</script>
+
+{% endblock %}
