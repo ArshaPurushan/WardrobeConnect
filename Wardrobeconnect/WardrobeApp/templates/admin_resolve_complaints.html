@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Manage User Complaints</h2>
+
+    <!-- Complaints Table -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Complaint ID</th>
+                    <th>User</th>
+                    <th>Complaint</th>
+                    <th>Employee Response</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for complaint in complaints %}
+                <tr>
+                    <td>{{ complaint.id }}</td>
+                    <td>{{ complaint.user.username }}</td>
+                    <td>{{ complaint.message }}</td>
+                    <td>
+                        {% if complaint.response %}
+                            {{ complaint.response }}
+                        {% else %}
+                            <span class="text-muted">No response yet</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if complaint.status == "Resolved" %}
+                            <span class="badge bg-success">Resolved</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#replyModal{{ complaint.id }}">
+                            Reply
+                        </button>
+                        <a href="{% url 'resolve_complaints' complaint.id %}" class="btn btn-sm btn-success">
+                            Mark as Resolved
+                        </a>
+                    </td>
+                </tr>
+
+                <!-- Reply Modal -->
+                <div class="modal fade" id="replyModal{{ complaint.id }}" tabindex="-1" aria-labelledby="replyModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">Reply to Complaint</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <form method="post" action="{% url 'reply_complaint' complaint.id %}">
+                                {% csrf_token %}
+                                <div class="modal-body">
+                                    <div class="form-group">
+                                        <label for="responseText">Your Response:</label>
+                                        <textarea name="response" id="responseText" class="form-control" required></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Send Reply</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

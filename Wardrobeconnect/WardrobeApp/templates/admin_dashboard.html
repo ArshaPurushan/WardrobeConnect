@@ -2,64 +2,69 @@
 {% block content %}
 <div class="container mt-5">
     <h2 class="text-center mb-4">Admin Dashboard</h2>
-
-    <div class="row row-cols-1 row-cols-md-2 g-4">
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
         <!-- User Management -->
         <div class="col">
-            <div class="card shadow-sm text-center">
-                <div class="card-header bg-danger text-white">
-                    <i class="fas fa-users"></i> User Management
+            <div class="card shadow-lg text-center border-0 rounded-3">
+                <div class="card-header bg-primary text-white d-flex align-items-center justify-content-center">
+                    <i class="fas fa-users fa-2x me-2"></i> <span>User Management</span>
                 </div>
                 <div class="card-body">
-                    <a href="{% url 'manage_users' %}" class="btn btn-success w-100">Manage Users</a>
+                    <p class="text-muted">Manage and approve users efficiently.</p>
+                    <a href="{% url 'manage_users' %}" class="btn btn-outline-primary w-100">Manage Users</a>
                 </div>
             </div>
         </div>
 
         <!-- Inventory Management -->
         <div class="col">
-            <div class="card shadow-sm text-center">
-                <div class="card-header bg-success text-white">
-                    <i class="fas fa-boxes"></i> Inventory & Trends
+            <div class="card shadow-lg text-center border-0 rounded-3">
+                <div class="card-header bg-success text-white d-flex align-items-center justify-content-center">
+                    <i class="fas fa-boxes fa-2x me-2"></i> <span>Inventory & Trends</span>
                 </div>
                 <div class="card-body">
-                    <a href="{% url 'admin_manage_inventory' %}" class="btn btn-primary w-100">Manage Inventory</a>
+                    <p class="text-muted">Track inventory and analyze trends.</p>
+                    <a href="{% url 'admin_manage_inventory' %}" class="btn btn-outline-success w-100">Manage Inventory</a>
                 </div>
             </div>
         </div>
 
         <!-- Employee Management -->
         <div class="col">
-            <div class="card shadow-sm text-center">
-                <div class="card-header bg-info text-white">
-                    <i class="fas fa-user-tie"></i> Employee Management
+            <div class="card shadow-lg text-center border-0 rounded-3">
+                <div class="card-header bg-info text-white d-flex align-items-center justify-content-center">
+                    <i class="fas fa-user-tie fa-2x me-2"></i> <span>Employee Management</span>
                 </div>
                 <div class="card-body">
-                    <a href="{% url 'manage_employees' %}" class="btn btn-info w-100">Manage Employees</a>
+                    <p class="text-muted">Manage employee roles and responsibilities.</p>
+                    <a href="{% url 'manage_employees' %}" class="btn btn-outline-info w-100">Manage Employees</a>
                 </div>
             </div>
         </div>
 
         <!-- Complaints Handling -->
         <div class="col">
-            <div class="card shadow-sm text-center">
-                <div class="card-header bg-danger text-white">
-                    <i class="fas fa-exclamation-circle"></i> Complaints Management
+            <div class="card shadow-lg text-center border-0 rounded-3">
+                <div class="card-header bg-danger text-white d-flex align-items-center justify-content-center">
+                    <i class="fas fa-exclamation-circle fa-2x me-2"></i> <span>Complaints Management</span>
                 </div>
                 <div class="card-body">
-                    <a href="{% url 'resolve_complaints' %}" class="btn btn-danger w-100">Handle Complaints</a>
+                    <p class="text-muted">Resolve user complaints effectively.</p>
+                    <a href="{% url 'admin_resolve_complaints' %}" class="btn btn-outline-danger w-100">Handle Complaints</a>
                 </div>
             </div>
         </div>
 
         <!-- Reports & Payments -->
         <div class="col">
-            <div class="card shadow-sm text-center">
-                <div class="card-header bg-secondary text-white">
-                    <i class="fas fa-file-invoice-dollar"></i> Reports & Payments
+            <div class="card shadow-lg text-center border-0 rounded-3">
+                <div class="card-header bg-warning text-white d-flex align-items-center justify-content-center">
+                    <i class="fas fa-file-invoice-dollar fa-2x me-2"></i> <span>Reports & Payments</span>
                 </div>
                 <div class="card-body">
-                    <a href="{% url 'view_reports' %}" class="btn btn-warning w-100">View Reports</a>
+                    <p class="text-muted">View and manage financial reports.</p>
+                    <a href="{% url 'view_reports' %}" class="btn btn-outline-warning w-100">View Reports</a>
                 </div>
             </div>
         </div>

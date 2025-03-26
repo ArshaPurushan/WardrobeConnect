@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">Search & Browse Products</h2>
+
+    <!-- Search Bar with Filter -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <select id="searchType" class="form-select">
+                <option value="name">Search by Name</option>
+                <option value="category">Search by Category</option>
+                <option value="price">Search by Price</option>
+            </select>
+        </div>
+        <div class="col-md-8">
+            <input type="text" id="searchInput" class="form-control" placeholder="Type to search...">
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="text-center" style="display: none;">
+        <p>Loading results...</p>
+    </div>
+
+    <!-- Product Listing -->
+    <div id="productList" class="row">
+        {% for product in products %}
+            <div class="col-md-4 product-card">
+                <div class="card shadow-sm">
+                    <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="text-muted">{{ product.category }}</p>
+                        <p class="card-text fw-bold">${{ product.price }}</p>
+                        <a href="{% url 'product_details' product.id %}" class="btn btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <p class="text-center">No products available.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("searchInput");
+    const searchType = document.getElementById("searchType");
+    const productList = document.getElementById("productList");
+    const loading = document.getElementById("loading");
+
+    searchInput.addEventListener("input", function() {
+        const query = searchInput.value.trim();
+        const type = searchType.value;
+
+        if (query.length < 2) {
+            restoreOriginalProducts();
+            return;
+        }
+
+        loading.style.display = "block"; // Show loading
+
+        fetch(`/search/?q=${encodeURIComponent(query)}&type=${type}`, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+            return response.json();
+        })
+        .then(data => {
+            loading.style.display = "none"; // Hide loading
+            productList.innerHTML = "";
+
+            if (data.products.length > 0) {
+                data.products.forEach(product => {
+                    productList.innerHTML += `
+                        <div class="col-md-4 product-card">
+                            <div class="card shadow-sm">
+                                <img src="${product.image}" class="card-img-top" alt="${product.name}">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">${product.name}</h5>
+                                    <p class="text-muted">${product.category}</p>
+                                    <p class="card-text fw-bold">$${product.price}</p>
+                                    <a href="/product/${product.id}/" class="btn btn-outline-primary">View Details</a>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+            } else {
+                productList.innerHTML = "<p class='text-center'>No products found.</p>";
+            }
+        })
+        .catch(error => {
+            loading.style.display = "none";
+            productList.innerHTML = "<p class='text-center text-danger'>Error fetching results.</p>";
+        });
+    });
+
+    function restoreOriginalProducts() {
+        productList.innerHTML = `{% for product in products %}
+            <div class="col-md-4 product-card">
+                <div class="card shadow-sm">
+                    <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="text-muted">{{ product.category }}</p>
+                        <p class="card-text fw-bold">{{ product.price }}</p>
+                        <a href="{% url 'product_details' product.id %}" class="btn btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <p class="text-center">No products available.</p>
+        {% endfor %}`;
+    }
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Order Confirmed!</h2>
+
+<p>Thank you for your purchase.</p>
+<p>Booking ID: #{{ booking.id }}</p>
+<p>Total Paid: ₹{{ booking.total_price }}</p>
+
+<a href="{% url 'order_history' %}">View Your Orders</a>
+
+{% endblock %}

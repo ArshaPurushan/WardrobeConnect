@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Reports</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f4f4f4; }
+        button { padding: 5px 10px; margin: 2px; cursor: pointer; }
+        .approved { color: green; }
+        .rejected { color: red; }
+    </style>
+</head>
+<body>
+
+    <h2>Sales Reports</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Date</th>
+                <th>Total Sales</th>
+                <th>Profit</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in reports %}
+            <tr id="report-{{ report.id }}">
+                <td>{{ report.id }}</td>
+                <td>{{ report.date }}</td>
+                <td>${{ report.total_sales }}</td>
+                <td>${{ report.profit }}</td>
+                <td class="status">{{ report.report_status }}</td>
+                <td>
+                    <button onclick="updateStatus({{ report.id }}, 'approved')">Approve</button>
+                    <button onclick="updateStatus({{ report.id }}, 'rejected')">Reject</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        function updateStatus(reportId, status) {
+            $.ajax({
+                url: `/api/sales-reports/${reportId}/`,  
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ status: status }),
+                success: function(response) {
+                    $(`#report-${reportId} .status`).text(status);
+                    alert(`Report ${reportId} marked as ${status}`);
+                },
+                error: function(error) {
+                    alert('Error updating status');
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>

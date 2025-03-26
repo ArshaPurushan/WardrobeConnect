@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>🛍 Checkout</h2>
+
+    <form action="{% url 'process_checkout' %}" method="POST">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="name" class="form-label">Full Name</label>
+            <input type="text" id="name" name="name" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" id="email" name="email" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="address" class="form-label">Shipping Address</label>
+            <textarea id="address" name="address" class="form-control" required></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="payment" class="form-label">Payment Method</label>
+            <select id="payment" name="payment" class="form-control">
+                <option value="credit_card">Credit Card</option>
+                <option value="paypal">PayPal</option>
+                <option value="cod">Cash on Delivery</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Place Order</button>
+    </form>
+
+    <a href="{% url 'cart' %}" class="btn btn-outline-secondary mt-3">← Back to Cart</a>
+</div>
+{% endblock %}

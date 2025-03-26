@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center"><i class="fas fa-box"></i> Order History</h2>
+
+    {% if bookings %}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Booking ID</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Rental Period</th>
+                    <th>Total Price</th>
+                    <th>Status</th>
+                    <th>Invoice</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings %}
+                <tr>
+                    <td>#{{ booking.id }}</td>
+                    <td>{{ booking.product.name }}</td>
+                    <td>{{ booking.quantity }}</td>
+                    <td>{{ booking.rental_start_date|date:"Y-m-d" }} → {{ booking.rental_end_date|date:"Y-m-d" }}</td>
+                    <td>₹{{ booking.total_price }}</td>
+                    <td><span class="badge bg-success">{{ booking.status }}</span></td>
+                    <td>
+                        <a href="{% url 'invoice' booking.id %}" target="_blank" class="btn btn-primary btn-sm">
+                            <i class="fas fa-file-invoice"></i> View Invoice
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-center">No orders found.</p>
+    {% endif %}
+</div>
+{% endblock %}

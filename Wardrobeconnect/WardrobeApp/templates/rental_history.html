@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Past Rentals</h2>
+<ul>
+    {% for rental in rentals %}
+        <li>{{ rental.item_name }} - Rented on {{ rental.date_rented }}</li>
+    {% empty %}
+        <li>No past rentals found.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

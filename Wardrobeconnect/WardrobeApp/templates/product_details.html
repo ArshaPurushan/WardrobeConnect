@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row g-5 align-items-center">
+        <!-- Product Image -->
+        <div class="col-md-6 text-center">
+            <div class="product-image-container">
+                <img src="{{ product.image.url }}" class="img-fluid rounded shadow-lg product-image" alt="{{ product.name }}">
+            </div>
+        </div>
+
+        <!-- Product Details -->
+        <div class="col-md-6">
+            <h2 class="fw-bold display-6">{{ product.name }}</h2>
+
+            <!-- Star Rating & Category -->
+            <p class="text-muted mb-2">
+                <span class="fw-bold text-warning">⭐ 4.5 (120 reviews)</span>
+                <br>
+                Category: <span class="badge bg-primary">{{ product.category }}</span>
+            </p>
+
+            <h3 class="text-success fw-bold mb-3">${{ product.price|floatformat:2 }}</h3>
+
+            <p class="text-secondary lead">{{ product.description }}</p>
+
+            <!-- Rental Date Selection -->
+            <div class="mb-3">
+                <label for="rental_start_date" class="fw-bold">Start Date:</label>
+                <input type="date" id="rental_start_date" name="rental_start_date" class="form-control border-dark">
+            </div>
+
+            <div class="mb-3">
+                <label for="rental_end_date" class="fw-bold">End Date:</label>
+                <input type="date" id="rental_end_date" name="rental_end_date" class="form-control border-dark">
+            </div>
+
+            <!-- Check Availability Button -->
+            <button type="button" id="checkAvailabilityBtn" class="btn btn-lg btn-info w-100 fw-bold shadow">
+                🔍 Check Availability
+            </button>
+
+            <div id="availabilityResult" class="mt-3 text-center fw-bold"></div>
+
+            <!-- Quantity Selector -->
+            <div class="d-flex align-items-center my-4">
+                <label for="quantity" class="fw-bold me-3">Quantity:</label>
+                <div class="input-group w-50">
+                    <button class="btn btn-outline-dark" type="button" onclick="decreaseQuantity()">-</button>
+                    <input type="number" name="quantity" id="quantity" value="1" min="1" class="form-control text-center border-dark">
+                    <button class="btn btn-outline-dark" type="button" onclick="increaseQuantity()">+</button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-grid gap-3">
+                <form action="{% url 'add_to_cart' product.id %}" method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-success w-100 fw-bold shadow">
+                        🛒 Add to Cart
+                    </button>
+                </form>
+
+                <form action="{% url 'add_to_wishlist' product.id %}" method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-lg btn-outline-warning w-100 fw-bold shadow">⭐ Add to Wishlist</button>
+                </form>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="mt-4 d-flex justify-content-between">
+                <a href="{% url 'search' %}" class="btn btn-outline-dark fw-bold px-4 shadow-sm">
+                    ← Back to Products
+                </a>
+                <a href="{% url 'cart' %}" class="btn btn-primary fw-bold px-4 shadow-sm">
+                    🛍️ View Cart
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Quantity & Check Availability -->
+<script>
+    function increaseQuantity() {
+        let qty = document.getElementById("quantity");
+        qty.value = parseInt(qty.value) + 1;
+    }
+
+    function decreaseQuantity() {
+        let qty = document.getElementById("quantity");
+        if (qty.value > 1) {
+            qty.value = parseInt(qty.value) - 1;
+        }
+    }
+
+    document.getElementById("checkAvailabilityBtn").addEventListener("click", () => {
+        let startDate = document.getElementById("rental_start_date").value;
+        let endDate = document.getElementById("rental_end_date").value;
+
+        if (!startDate || !endDate) {
+            document.getElementById("availabilityResult").innerHTML = "<span class='text-danger'>Please select both start and end dates.</span>";
+            return;
+        }
+
+        fetch("/check-availability/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                product_id: "{{ product.id }}",
+                rental_start_date: startDate,
+                rental_end_date: endDate
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.available) {
+                document.getElementById("availabilityResult").innerHTML = "<span class='text-success'>✅ Available for your selected dates!</span>";
+            } else {
+                document.getElementById("availabilityResult").innerHTML = "<span class='text-danger'>❌ Not available. Try different dates.</span>";
+            }
+        })
+        .catch(error => {
+            document.getElementById("availabilityResult").innerHTML = "<span class='text-danger'>⚠️ Error checking availability.</span>";
+        });
+    });
+</script>
+
+<style>
+    /* Product Image Hover */
+    .product-image-container {
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        transition: transform 0.3s ease-in-out;
+    }
+    .product-image-container:hover {
+        transform: scale(1.05);
+    }
+
+    /* Button Styling */
+    .btn {
+        border-radius: 10px;
+        transition: all 0.3s ease-in-out;
+    }
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Quantity Selector */
+    .input-group .btn {
+        border-radius: 8px;
+    }
+
+    /* Rental Date Inputs */
+    input[type="date"] {
+        border-radius: 8px;
+        padding: 10px;
+        border: 1px solid #333;
+    }
+
+    /* Availability Result */
+    #availabilityResult {
+        font-size: 1.2rem;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .product-image {
+            max-width: 80%;
+        }
+        .input-group {
+            width: 100% !important;
+        }
+    }
+</style>
+
+{% endblock %}

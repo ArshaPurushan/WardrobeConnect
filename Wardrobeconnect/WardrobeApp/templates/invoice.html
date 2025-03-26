@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Invoice</h2>
+
+<p><strong>Invoice ID:</strong> #{{ booking.id }}</p>
+<p><strong>Date:</strong> {{ booking.rental_start_date|date:"Y-m-d H:i:s" }}</p>
+<p><strong>Customer:</strong> {{ booking.user.username }}</p>
+<p><strong>Address:</strong> {{ booking.address }}</p>
+
+<h3>Booking Details:</h3>
+<table border="1">
+    <tr>
+        <th>Product</th>
+        <th>Quantity</th>
+        <th>Rental Duration</th>
+        <th>Total Price</th>
+    </tr>
+    <tr>
+        <td>{{ booking.product.name }}</td>
+        <td>{{ booking.quantity }}</td>
+        <td>{{ booking.rental_duration }} days</td>
+        <td>₹{{ booking.total_price }}</td>
+    </tr>
+</table>
+
+<!-- Print & Download Buttons -->
+<button onclick="printInvoice()">🖨️ Print Invoice</button>
+<a href="{% url 'download_invoice' booking.id %}" class="button">📥 Download Invoice</a>
+
+<script>
+function printInvoice() {
+    window.print();
+}
+</script>
+
+{% endblock %}

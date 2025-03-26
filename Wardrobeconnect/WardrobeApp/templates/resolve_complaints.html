@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Resolve Complaints</h2>
+    
+    {% if complaints %}
+        <table class="table table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for complaint in complaints %}
+                <tr>
+                    <td>{{ complaint.id }}</td>
+                    <td>{{ complaint.user.username }}</td>
+                    <td>{{ complaint.description }}</td>
+                    <td>
+                        <span class="badge {% if complaint.status == 'Resolved' %}badge-success{% else %}badge-warning{% endif %}">
+                            {{ complaint.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if complaint.status != 'Resolved' %}
+                        <form action="{% url 'resolve_complaint' complaint.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-sm">Mark as Resolved</button>
+                        </form>
+                        {% else %}
+                            <button class="btn btn-secondary btn-sm" disabled>Resolved</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No complaints available.</p>
+    {% endif %}
+</div>
+{% endblock %}

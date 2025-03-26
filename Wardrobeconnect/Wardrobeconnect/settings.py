@@ -131,6 +131,11 @@ AUTHENTICATION_BACKENDS = [
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+
+
+RAZORPAY_KEY_ID = "rzp_test_ONlE80KLL2rGcO"
+RAZORPAY_SECRET_KEY = "0AjDP4Dt8Q66LfS8AuzRmXqt"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 

@@ -18,7 +18,7 @@
             <tr>
                 <th>Image</th>
                 <th>Name</th>
-                <th>Username</th>  <!-- Added Username Column -->
+                <th>Username</th>
                 <th>Email</th>
                 <th>Password</th>
                 <th>Role</th>
@@ -30,14 +30,14 @@
             {% for employee in employees %}
             <tr>
                 <td>
-                    {% if employee.image %}
-                        <img src="{{ employee.image.url }}" alt="{{ employee.name }}" width="50" height="50" class="rounded-circle">
+                    {% if employee.profile_picture %}
+                        <img src="{{ employee.profile_picture.url }}" class="img-fluid mb-3" alt="{{ employee.name }}">
                     {% else %}
-                        <img src="/static/default-profile.png" alt="Default Image" width="50" height="50" class="rounded-circle">
+                        <img src="/static/default-profile.png" class="img-fluid mb-3" alt="Default Image">
                     {% endif %}
                 </td>
                 <td>{{ employee.name }}</td>
-                <td>{{ employee.username }}</td>  <!-- Display Username -->
+                <td>{{ employee.username }}</td>
                 <td>{{ employee.email }}</td>
                 <td>
                     <input type="password" value="{{ employee.password }}" class="form-control" id="password{{ employee.id }}" readonly>
@@ -78,13 +78,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                {% if employee.image %}
-                    <img src="{{ employee.image.url }}" class="img-fluid mb-3" alt="{{ employee.name }}">
+                {% if employee.profile_picture %}
+                    <img src="{{ employee.profile_picture.url }}" class="img-fluid mb-3" alt="{{ employee.name }}">
                 {% else %}
                     <img src="/static/default-profile.png" class="img-fluid mb-3" alt="Default Image">
                 {% endif %}
                 <p><strong>Name:</strong> {{ employee.name }}</p>
-                <p><strong>Username:</strong> {{ employee.username }}</p>  <!-- Display Username in Modal -->
+                <p><strong>Username:</strong> {{ employee.username }}</p>
                 <p><strong>Email:</strong> {{ employee.email }}</p>
                 <p><strong>Password:</strong> <span id="modalPassword{{ employee.id }}">••••••••</span>
                     <button class="btn btn-sm btn-secondary" onclick="toggleModalPassword({{ employee.id }})">
@@ -103,19 +103,19 @@
 <script>
     function togglePassword(id) {
         var passwordField = document.getElementById("password" + id);
-        if (passwordField.type === "password") {
-            passwordField.type = "text";
-        } else {
-            passwordField.type = "password";
+        if (passwordField) {
+            passwordField.type = (passwordField.type === "password") ? "text" : "password";
         }
     }
 
     function toggleModalPassword(id) {
         var modalPasswordField = document.getElementById("modalPassword" + id);
-        if (modalPasswordField.innerText === "••••••••") {
-            modalPasswordField.innerText = document.getElementById("password" + id).value;
-        } else {
-            modalPasswordField.innerText = "••••••••";
+        var originalPasswordField = document.getElementById("password" + id);
+
+        if (modalPasswordField && originalPasswordField) {
+            modalPasswordField.innerText = (modalPasswordField.innerText === "••••••••") 
+                ? originalPasswordField.value 
+                : "••••••••";
         }
     }
 </script>

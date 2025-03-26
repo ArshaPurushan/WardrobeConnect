@@ -1,7 +1,10 @@
 from datetime import timedelta
 from django.db import models
 from django.utils.timezone import now
+from django.core.validators import RegexValidator
 from django.utils.text import slugify
+from django.core.exceptions import ValidationError
+from django.db.models import Avg 
 
 
 #        ADMIN MODEL
@@ -40,7 +43,7 @@ class Employee(models.Model):
     position = models.CharField(max_length=150, default="Employee")
     joined_at = models.DateTimeField(default=now)  # Auto-fill joining date
     status = models.BooleanField(default=True)  # Active status
-    profile_picture = models.ImageField(upload_to="employee_images/")
+    profile_picture = models.ImageField(upload_to="profile_pictures/", null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if not self.username:  # Only generate username if it's empty
@@ -57,30 +60,29 @@ class Employee(models.Model):
     def __str__(self):
         return f"{self.name} ({self.email})"
 
-#      USER PROFILE MODEL
 class UserProfile(models.Model):
     STATUS_CHOICES = [
         (0, 'Pending'),
         (1, 'Approved'),
         (2, 'Rejected'),
     ]
-    logid = models.OneToOneField('Login', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255, default="Unnamed User")
+
+    user = models.OneToOneField(Login, on_delete=models.CASCADE)
+    full_name = models.CharField(max_length=50)
     email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=15)
+    phone_regex = RegexValidator(
+        regex=r'^\+?1?\d{9,15}$',
+        message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."
+    )
+    phone = models.CharField(max_length=15, unique=True)
+    password = models.CharField(max_length=255)  # ⚠️ Stores passwords as plain text
     status = models.IntegerField(choices=STATUS_CHOICES, default=0)  # Default is Pending
 
     def __str__(self):
-        return f"{self.name} - {self.get_status_display()}"  # Display status name
-
+        return f"{self.full_name} - {self.get_status_display()}"
 
 
 #        PRODUCT MODEL
-class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-
-    def __str__(self):
-        return self.name
 
 class Product(models.Model):
     AVAILABILITY_CHOICES = [
@@ -91,16 +93,61 @@ class Product(models.Model):
         ("pending", "Pending Approval"),
     ]
 
+    CATEGORY_CHOICES = [
+        ('casual', 'Casual'),
+        ('formal', 'Formal'),
+        ('party', 'Party Wear'),
+        ('traditional', 'Traditional'),
+        ('sportswear', 'Sportswear'),
+        ('winter', 'Winter Wear'),
+    ]
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+    SIZE_CHOICES = [
+    ("S", "Small"),
+    ("M", "Medium"),
+    ("L", "Large"),
+    ("XL", "Extra Large"),
+    ("XXL", "Double Extra Large"),
+]
+
+
     name = models.CharField(max_length=255)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="casual")  # ✅ Fixed
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    stock = models.IntegerField()
-    description = models.TextField(default="No description available")
-    image = models.ImageField(upload_to="product_images/", null=True, blank=True)
-    availability = models.CharField(max_length=10, choices=AVAILABILITY_CHOICES, default="available")
+    stock = models.PositiveIntegerField()
+    description = models.TextField()
+    image = models.ImageField(upload_to="product_images/", blank=True, null=True)
+    availability = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default="available")
+    size = models.CharField(max_length=5, choices=SIZE_CHOICES, default="M")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_category_display()})" 
+    
+#       WISHLIST
+class Wishlist(models.Model):
+    user = models.ForeignKey(Login, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+#       CART
+# Function to set the default rental end date
+def default_rental_end_date():
+    return now() + timedelta(days=7)
+
+class Cart(models.Model):
+    user = models.ForeignKey(Login, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    size = models.CharField(max_length=5, choices=Product.SIZE_CHOICES, default="M")  # ✅ Added size
+    quantity = models.PositiveIntegerField(default=1)
+    rental_start_date = models.DateField(default=now)
+    rental_end_date = models.DateField(default=default_rental_end_date)
+    added_at = models.DateTimeField(auto_now_add=True)
 
 
 #           RENTAL MODEL
@@ -124,36 +171,87 @@ def default_rental_end_date():
     return now() + timedelta(days=7)
 
 class Booking(models.Model):
-    STATUS_CHOICES = [
+    user = models.ForeignKey(Login, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    size = models.CharField(max_length=5, choices=Product.SIZE_CHOICES, default="M")
+    quantity = models.PositiveIntegerField(default=1)
+    rental_start_date = models.DateField(default=now)
+    rental_end_date = models.DateField(default=default_rental_end_date)
+    rental_duration = models.PositiveIntegerField()
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    security_deposit = models.DecimalField(max_digits=10, decimal_places=2, default=50.00)  # New field
+    damage_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # New field
+    late_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # New field
+    refund_status = models.CharField(max_length=20, choices=[
+        ("Pending", "Pending"),
+        ("Refunded", "Refunded"),
+        ("Deducted", "Deducted"),
+    ], default="Pending")
+    status = models.CharField(max_length=20, choices=[
         ("Pending", "Pending"),
         ("Paid", "Paid"),
         ("Completed", "Completed"),
         ("Canceled", "Canceled"),
-    ]
-
-    user = models.ForeignKey("Login", on_delete=models.CASCADE)
-    product = models.ForeignKey("Product", on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
-    rental_duration = models.PositiveIntegerField(default=7)  # Duration in days
-    rental_start_date = models.DateTimeField(default=now)
-    rental_end_date = models.DateTimeField(default=default_rental_end_date)  # ✅ Fixed lambda issue
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # ✅ Added default
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
+    ], default="Pending")
+    address = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        """Ensure rental_end_date and total_price are correctly calculated before saving."""
-        self.rental_end_date = self.rental_start_date + timedelta(days=self.rental_duration)
-        
-        # Ensure total_price calculation is safe
-        product_price = getattr(self.product, "price", 0)  # Get price safely
-        self.total_price = round(product_price * self.quantity * self.rental_duration, 2)
-
+        self.rental_duration = (self.rental_end_date - self.rental_start_date).days
+        self.total_price = self.product.price * self.quantity * self.rental_duration
         super().save(*args, **kwargs)
 
+    def calculate_final_refund(self):
+        """Calculate the refundable amount after deductions."""
+        return self.security_deposit - (self.damage_fee + self.late_fee)
+
+    def process_refund(self):
+        """Finalize refund based on deductions."""
+        final_refund = self.calculate_final_refund()
+        self.refund_status = "Refunded" if final_refund > 0 else "Deducted"
+        self.save()
+        return final_refund
+
+
+
+#      PAYMENT MODEL
+class Payment(models.Model):
+    PAYMENT_METHODS = [
+        ("Credit Card", "Credit Card"),
+        ("Debit Card", "Debit Card"),
+        ("PayPal", "PayPal"),
+        ("UPI", "UPI"),
+        ("Bank Transfer", "Bank Transfer"),
+        ("Razorpay", "Razorpay"),  # Added Razorpay as an option
+    ]
+
+    STATUS_CHOICES = [
+        ("Pending", "Pending"),
+        ("Successful", "Successful"),
+        ("Failed", "Failed"),
+        ("Refunded", "Refunded"),  # Added refund status
+    ]
+
+    booking = models.OneToOneField(Booking, on_delete=models.CASCADE)  
+    amount = models.DecimalField(max_digits=10, decimal_places=2)  # Includes security deposit
+    security_deposit = models.DecimalField(max_digits=10, decimal_places=2, default=50.00)  # New field
+    refund_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Tracks refunded amount
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    transaction_id = models.CharField(max_length=100, unique=True, null=True, blank=True)  
+    razorpay_order_id = models.CharField(max_length=100, unique=True, null=True, blank=True)  # New field
+    razorpay_payment_id = models.CharField(max_length=100, unique=True, null=True, blank=True)  # New field
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
+    payment_date = models.DateTimeField(default=now)
+
+    def process_refund(self, refund_amount):
+        """Update refund details when admin processes a refund."""
+        self.refund_amount = refund_amount
+        self.status = "Refunded"
+        self.save()
+
     def __str__(self):
-        return f"Booking by {self.user.username} - {self.product.name} ({self.status})"
+        return f"Payment for {self.booking.user.username} - {self.amount} ({self.status})"
     
-    
+
 #      FEEDBACK MODEL
 class Feedback(models.Model):
     user = models.ForeignKey(Login, on_delete=models.CASCADE)
@@ -162,6 +260,7 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"Feedback by {self.user.username}"
+
 
 #      COMPLAINT MODEL
 class Complaint(models.Model):
@@ -177,3 +276,34 @@ class Complaint(models.Model):
 
     def __str__(self):
         return f"Complaint by {self.user.username} - {self.status}"
+    
+
+class ChatbotResponse(models.Model):
+    question = models.TextField()
+    response = models.TextField()  # Stores the chatbot's response
+    is_escalated = models.BooleanField(default=False)  # Escalate to admin if not found
+    created_at = models.DateTimeField(default=now)  # Keep only this
+
+    def __str__(self):
+        return f"Chatbot Response for: {self.question[:50]}..."
+
+#  SALESREPORT    
+class SalesReport(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    date = models.DateField()
+    total_sales = models.DecimalField(max_digits=10, decimal_places=2)
+    profit = models.DecimalField(max_digits=10, decimal_places=2)
+    report_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.date} - {self.report_status} ({self.total_sales}$)"
+
+

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>❤️ My Wishlist</h2>
+
+    {% if wishlist_items %}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in wishlist_items %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td>${{ item.product.price }}</td>
+                    <td>
+                        <a href="{% url 'add_to_cart' item.product.id %}" class="btn btn-success btn-sm">🛒 Add to Cart</a>
+                        <a href="{% url 'remove_from_wishlist' item.product.id %}" class="btn btn-danger btn-sm">❌ Remove</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Your wishlist is empty. <a href="{% url 'search' %}">Start Adding Products!</a></p>
+    {% endif %}
+</div>
+{% endblock %}

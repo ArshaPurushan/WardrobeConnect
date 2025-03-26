@@ -22,14 +22,14 @@
                 <img src="{{ product.image.url }}" alt="{{ product.name }}" width="80" height="80" class="img-thumbnail">
             </td>
             <td>{{ product.name }}</td>
-            <td>{{ product.category.name }}</td>
+            <td>{{ product.get_category_display }}</td>
             <td>${{ product.price }}</td>
             <td>{{ product.stock }}</td>
             <td>
                 <span class="badge bg-{% if product.status == 'approved' %}success
                                        {% elif product.status == 'pending' %}warning
                                        {% else %}danger{% endif %}">
-                    {{ product.get_status_display }}
+                    {{ product.get_status_display|default:"Unknown" }}
                 </span>
             </td>
             <td>
@@ -37,26 +37,33 @@
                     <a href="{% url 'approve_product' product.id %}" class="btn btn-sm btn-success">Approve</a>
                     <a href="{% url 'reject_product' product.id %}" class="btn btn-sm btn-danger">Reject</a>
                 {% endif %}
-                <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#productDetails{{ product.id }}">View</button>
+                <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#productDetails{{ product.id }}">
+                    View
+                </button>
             </td>
         </tr>
 
         <!-- Modal for Product Details -->
-        <div class="modal fade" id="productDetails{{ product.id }}" tabindex="-1" aria-labelledby="productDetailsLabel" aria-hidden="true">
-            <div class="modal-dialog">
+        <div class="modal fade" id="productDetails{{ product.id }}" tabindex="-1" aria-labelledby="productDetailsLabel{{ product.id }}" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Product Details</h5>
+                        <h5 class="modal-title">Product Details - {{ product.name }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <img src="{{ product.image.url }}" class="img-fluid mb-3" alt="{{ product.name }}">
+                        <div class="text-center">
+                            <img src="{{ product.image.url }}" class="img-fluid mb-3" alt="{{ product.name }}">
+                        </div>
                         <p><strong>Name:</strong> {{ product.name }}</p>
-                        <p><strong>Category:</strong> {{ product.category.name }}</p>
+                        <p><strong>Category:</strong> {{ product.get_category_display }}</p>
                         <p><strong>Price:</strong> ${{ product.price }}</p>
                         <p><strong>Stock:</strong> {{ product.stock }}</p>
-                        <p><strong>Status:</strong> {{ product.get_status_display }}</p>
+                        <p><strong>Status:</strong> {{ product.get_status_display|default:"Unknown" }}</p>
                         <p><strong>Description:</strong> {{ product.description }}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>
@@ -64,4 +71,5 @@
         {% endfor %}
     </tbody>
 </table>
+
 {% endblock %}

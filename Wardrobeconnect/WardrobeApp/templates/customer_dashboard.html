@@ -8,11 +8,10 @@
         <nav class="col-md-3 col-lg-2 d-md-block bg-dark sidebar text-white p-3">
             <h4 class="text-center">Dashboard</h4>
             <ul class="nav flex-column">
-                <li class="nav-item"><a href="{% url 'browse_rentals' %}" class="nav-link text-white"><i class="fas fa-tshirt"></i> Browse Rentals</a></li>
-                <li class="nav-item"><a href="{% url 'payments' %}" class="nav-link text-white"><i class="fas fa-credit-card"></i> Payments</a></li>
-                <li class="nav-item"><a href="{% url 'rental_history' %}" class="nav-link text-white"><i class="fas fa-history"></i> Rental History</a></li>
-                <li class="nav-item"><a href="{% url 'chatbot_assistance' %}" class="nav-link text-white"><i class="fas fa-comments"></i> Chatbot Assistance</a></li>
-                <li class="nav-item"><a href="{% url 'feedback' %}" class="nav-link text-white"><i class="fas fa-star"></i> Feedback</a></li>
+                <li class="nav-item"><a href="{% url 'order_history' %}" class="nav-link text-white"><i class="fas fa-box"></i> My Orders</a></li>
+                <li class="nav-item"><a href="{% url 'profile_management' %}" class="nav-link text-white"><i class="fas fa-user"></i> Profile Management</a></li>
+                <li class="nav-item"><a href="{% url 'complaint' %}" class="nav-link text-white"><i class="fas fa-exclamation-circle"></i> Submit Complaint</a></li>
+                <li class="nav-item"><a href="{% url 'chatbot' %}" class="nav-link text-white"><i class="fas fa-robot"></i> Chatbot Assistance</a></li>
             </ul>
         </nav>
 
@@ -22,56 +21,97 @@
                 <h2>Welcome, {{ user.username }}!</h2>
             </div>
 
-            <!-- Quick Filters & Categories -->
-            <div class="row my-4">
-                <div class="col-md-3">
-                    <div class="card text-center p-3">
-                        <i class="fas fa-male fa-2x"></i>
-                        <a href="{% url 'mens_wear' %}" class="stretched-link">Men's Wear</a>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-center p-3">
-                        <i class="fas fa-female fa-2x"></i>
-                        <a href="{% url 'womens_wear' %}" class="stretched-link">Women's Wear</a>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-center p-3">
-                        <i class="fas fa-child fa-2x"></i>
-                        <a href="{% url 'kids_wear' %}" class="stretched-link">Kids' Wear</a>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-center p-3">
-                        <i class="fas fa-tag fa-2x"></i>
-                        <a href="{% url 'discounted_rentals' %}" class="stretched-link">Discounted Rentals</a>
-                    </div>
+            <!-- Profile Management -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3>Profile Management</h3>
+                    <p><strong>Username:</strong> {{ user.username }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Joined:</strong> {{ user.date_joined }}</p>
+                    <a href="{% url 'edit_profile' %}" class="btn btn-primary">Edit Profile</a>
+                    <a href="{% url 'change_password' %}" class="btn btn-warning">Change Password</a>
                 </div>
             </div>
 
-            <!-- Payments Section -->
-            <div id="payments" class="my-4">
-                <h3>Make Payments</h3>
-                <p>Securely process your rental transactions.</p>
-                <a href="{% url 'payments' %}" class="btn btn-success"><i class="fas fa-credit-card"></i> Proceed to Payment</a>
+            <!-- My Orders -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3>My Orders</h3>
+                    <ul id="order-list">
+                        {% for booking in bookings %}
+                            <li>
+                                <strong>{{ booking.product.name }}</strong> - 
+                                Ordered on {{ booking.rental_start_date|date:"Y-m-d" }} 
+                                (Status: <span class="text-primary">{{ booking.status }}</span>)
+                            </li>
+                        {% empty %}
+                            <li>No orders found.</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{% url 'order_history' %}" class="btn btn-success">View Full Order History</a>
+                </div>
+            </div>
+
+            <!-- Shopping Cart -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3>Shopping Cart</h3>
+                    <ul id="cart-list">
+                        {% for item in cart_items %}
+                            <li>
+                                <strong>{{ item.product.name }}</strong> - ${{ item.product.price }}
+                                <a href="{% url 'remove_from_cart' item.id %}" class="text-danger">Remove</a>
+                            </li>
+                            {% empty %}
+                            <li>Your cart is empty.</li>
+                        {% endfor %}
+                    </ul>
+                    <a href="{% url 'cart' %}" class="btn btn-primary">Cart</a>
+                </div>
+            </div>
+
+            <!-- Wishlist -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3>Wishlist</h3>
+                    <ul id="wishlist">
+                        {% for item in wishlist_items %}
+                            <li>
+                                <strong>{{ item.product.name }}</strong> - ${{ item.product.price }}
+                                <a href="{% url 'remove_from_wishlist' item.id %}" class="text-danger">Remove</a>
+                                | <a href="{% url 'move_to_cart' item.id %}" class="text-success">Move to Cart</a>
+                            </li>
+                        {% empty %}
+                            <li>Your wishlist is empty.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Submit a Complaint -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3>Submit a Complaint</h3>
+                    <form method="POST" action="{% url 'complaint' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="complaint" class="form-label">Describe Your Issue:</label>
+                            <textarea class="form-control" id="complaint" name="complaint" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger">Submit Complaint</button>
+                    </form>
+                </div>
             </div>
 
             <!-- Chatbot Assistance -->
-            <div id="chatbot" class="my-4">
-                <h3>Chatbot Assistance</h3>
-                <p>Ask about rentals, payments, and order status.</p>
-                <a href="{% url 'chatbot_assistance' %}" class="btn btn-primary"><i class="fas fa-comments"></i> Open Chatbot</a>
-            </div>
-
-            <!-- Feedback Section -->
-            <div id="feedback" class="my-4">
-                <h3>Rate & Provide Feedback</h3>
-                <form action="{% url 'feedback' %}" method="POST">
-                    {% csrf_token %}
-                    <textarea class="form-control" name="feedback" placeholder="Share your experience..."></textarea>
-                    <button type="submit" class="btn btn-warning mt-2"><i class="fas fa-paper-plane"></i> Submit Feedback</button>
-                </form>
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h3>Chatbot Assistance</h3>
+                    <p>Ask about rentals, profile management, and order status.</p>
+                    <a href="{% url 'chatbot' %}" class="btn btn-primary">
+                        <i class="fas fa-robot"></i> Open Chatbot
+                    </a>
+                </div>
             </div>
         </main>
     </div>
@@ -84,12 +124,12 @@ function updateDashboard() {
         url: "{% url 'customer_dashboard' %}",
         type: "GET",
         success: function (data) {
-            $("#rental-list").html($(data).find("#rental-list").html());
-            $("#product-list").html($(data).find("#product-list").html());
+            $("#order-list").html($(data).find("#order-list").html());
+            $("#cart-list").html($(data).find("#cart-list").html());
+            $("#wishlist").html($(data).find("#wishlist").html());
         }
     });
 }
 setInterval(updateDashboard, 5000);
 </script>
-
 {% endblock %}
