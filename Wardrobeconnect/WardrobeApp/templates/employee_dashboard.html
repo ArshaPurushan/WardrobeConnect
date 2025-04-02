@@ -1,88 +1,297 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="dashboard-container">
-    <h2 class="dashboard-title">Welcome, {{ request.session.username }}!</h2>
-    <p class="role-info">Your Role: <strong>Employee</strong></p>
-    <p class="dashboard-desc">Efficiently manage inventory, address complaints, and analyze financial reports—all in one place.</p>
 
-    <div class="dashboard-menu">
-        <a href="{% url 'employee_inventory' %}" class="dashboard-card">
-            <div class="icon">📦</div>
-            <div class="card-text">Inventory Management</div>
-        </a>
-        <a href="{% url 'employee_complaints' %}" class="dashboard-card">
-            <div class="icon">⚠️</div>
-            <div class="card-text">Complaints</div>
-        </a>
-        <a href="{% url 'financial_reports' %}" class="dashboard-card">
-            <div class="icon">📊</div>
-            <div class="card-text">Financial Reports</div>
-        </a>
+{% block content %}
+<div class="dashboard-wrapper">
+    <div class="sidebar">
+        <div class="profile-section">
+            <img src="{{ employee.profile_picture.url }}" alt="{{ employee.username }}" class="profile-image">
+            <h2 class="username">{{ request.session.username }}</h2>
+            <p class="user-role">Employee</p>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="{% url 'employee_dashboard' %}" class="sidebar-link active">
+                <span class="icon">🏠</span>
+                Dashboard
+            </a>
+            <a href="{% url 'employee_inventory' %}" class="sidebar-link">
+                <span class="icon">📦</span>
+                Inventory Management
+            </a>
+            <a href="{% url 'employee_complaints' %}" class="sidebar-link">
+                <span class="icon">⚠️</span>
+                Complaints
+            </a>
+            <a href="{% url 'employee_reports' %}" class="sidebar-link">
+                <span class="icon">📊</span>
+                Reports
+            </a>
+            <a href="{% url 'employee_bookings' %}" class="sidebar-link">
+                <span class="icon">🔄</span>
+                Product tracking
+            </a>
+
+            <a href="{% url 'logout' %}" class="sidebar-link logout-link">
+                <span class="icon">🚪</span>
+                Logout
+            </a>
+        </nav>
     </div>
+    
+    <main class="main-content">
+        <div class="dashboard-grid">
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <h3>Attendance</h3>
+                        <p>95% this month</p>
+                        <div class="stat-progress">
+                            <div class="progress-bar" style="width: 95%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-content">
+                        <h3>Performance</h3>
+                        <p>A+ Rating</p>
+                        <div class="stat-progress">
+                            <div class="progress-bar performance" style="width: 90%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-content">
+                        <h3>Payroll</h3>
+                        <p>Next Payout: $4,250</p>
+                        <div class="stat-progress">
+                            <div class="progress-bar payroll" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="recent-activities">
+                <h2>Recent Activities</h2>
+                <div class="activity-list">
+                    <div class="activity-item">
+                        <span class="activity-icon">📦</span>
+                        <div class="activity-details">
+                            <h3>Inventory Update</h3>
+                            <p>Completed quarterly inventory check</p>
+                            <span class="activity-time">2 hours ago</span>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <span class="activity-icon">✅</span>
+                        <div class="activity-details">
+                            <h3>Task Completion</h3>
+                            <p>Finished project milestone ahead of schedule</p>
+                            <span class="activity-time">Yesterday</span>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <span class="activity-icon">📊</span>
+                        <div class="activity-details">
+                            <h3>Report Submission</h3>
+                            <p>Quarterly financial report submitted</p>
+                            <span class="activity-time">3 days ago</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="upcoming-tasks">
+                <h2>Upcoming Tasks</h2>
+                <div class="task-list">
+                    <div class="task-item">
+                        <input type="checkbox" id="task1">
+                        <label for="task1">Complete inventory audit</label>
+                        <span class="task-date">Friday, March 29</span>
+                    </div>
+                    <div class="task-item">
+                        <input type="checkbox" id="task2">
+                        <label for="task2">Client meeting preparation</label>
+                        <span class="task-date">Monday, April 1</span>
+                    </div>
+                    <div class="task-item">
+                        <input type="checkbox" id="task3">
+                        <label for="task3">Monthly team report</label>
+                        <span class="task-date">Wednesday, April 3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="performance-chart">
+                <h2>Performance Trend</h2>
+                <div class="chart-placeholder">
+                    <div class="chart-line"></div>
+                    <div class="chart-line"></div>
+                    <div class="chart-line"></div>
+                </div>
+            </div>
+        </div>
+    </main>
 </div>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
-.dashboard-container {
-    text-align: center;
-    margin: 40px auto;
-    font-family: 'Poppins', sans-serif;
-    max-width: 700px;
-    background: #ffffff;
-    padding: 25px;
-    border-radius: 15px;
-    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+:root {
+    --bg-primary: #f4f7fa;
+    --text-primary: #333;
+    --card-bg: white;
+    --accent-blue: #4a90e2;
+    --accent-green: #2ecc71;
+    --accent-orange: #f39c12;
 }
-.dashboard-title {
-    font-size: 24px;
-    font-weight: 600;
-    color: #333;
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-primary);
+    margin: 0;
+    color: var(--text-primary);
 }
-.role-info {
-    color: #6c757d;
-    font-size: 16px;
-    margin-bottom: 15px;
-}
-.dashboard-desc {
-    font-size: 14px;
-    color: #555;
-    margin-bottom: 25px;
-}
-.dashboard-menu {
+
+.dashboard-wrapper {
     display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    flex-wrap: wrap;
-    gap: 20px;
+    min-height: 100vh;
 }
-.dashboard-card {
+
+.sidebar {
+    width: 250px;
+    background-color: white;
+    padding: 30px 20px;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+}
+
+.profile-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--accent-blue);
+}
+
+.sidebar-menu {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 200px;
-    height: 150px;
-    background: linear-gradient(135deg, #007bff, #0044cc);
-    color: white;
-    text-decoration: none;
-    border-radius: 12px;
-    font-weight: bold;
-    transition: 0.3s;
-    box-shadow: 4px 6px 12px rgba(0, 0, 0, 0.2);
+    gap: 10px;
+    margin-top: 20px;
 }
-.dashboard-card:hover {
-    background: linear-gradient(135deg, #0044cc, #002a80);
-    transform: scale(1.05);
-    box-shadow: 5px 7px 14px rgba(0, 0, 0, 0.3);
-}
-.icon {
-    font-size: 40px;
-    margin-bottom: 10px;
-}
-.card-text {
-    font-size: 16px;
-}
-</style>
 
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    text-decoration: none;
+    color: var(--text-primary);
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.sidebar-link:hover, .sidebar-link.active {
+    background-color: var(--accent-blue);
+    color: white;
+}
+
+.sidebar-link .icon {
+    margin-right: 10px;
+    font-size: 20px;
+}
+
+.main-content {
+    flex-grow: 1;
+    padding: 30px;
+    background-color: var(--bg-primary);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.quick-stats {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.stat-card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    font-size: 40px;
+    margin-right: 15px;
+    opacity: 0.7;
+}
+
+.stat-progress {
+    height: 5px;
+    background-color: #e0e0e0;
+    border-radius: 3px;
+    margin-top: 10px;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 3px;
+}
+
+.progress-bar.performance { background-color: var(--accent-green); }
+.progress-bar { background-color: var(--accent-blue); }
+.progress-bar.payroll { background-color: var(--accent-orange); }
+
+.recent-activities, .upcoming-tasks, .performance-chart {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.activity-item, .task-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.activity-icon {
+    font-size: 24px;
+    margin-right: 15px;
+    opacity: 0.7;
+}
+
+.task-item input[type="checkbox"] {
+    margin-right: 15px;
+}
+
+.performance-chart .chart-placeholder {
+    height: 200px;
+    background-color: #f4f4f4;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 10px;
+}
+
+.chart-line {
+    width: 20px;
+    background-color: var(--accent-blue);
+    opacity: 0.5;
+}
+
+.chart-line:nth-child(2) { height: 150px; }
+.chart-line:nth-child(3) { height: 100px; }
+.chart-line:first-child { height: 120px; }
+</style>
 {% endblock %}

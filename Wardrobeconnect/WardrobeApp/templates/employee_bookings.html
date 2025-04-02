@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard - Assigned Bookings</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .dashboard-title {
+            color: #2c3e50;
+            margin: 0;
+        }
+        .back-button {
+            background-color: #34495e;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .back-button:hover {
+            background-color: #2c3e50;
+        }
+        .booking-table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .booking-table th {
+            background-color: #3498db;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .booking-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .booking-table tr:last-child td {
+            border-bottom: none;
+        }
+        .booking-table tr:hover {
+            background-color: #f5f9ff;
+        }
+        .status-booked {
+            background-color: #fff8e1;
+            color: #f39c12;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .status-completed {
+            background-color: #e8f5e9;
+            color: #27ae60;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .status-canceled {
+            background-color: #ffebee;
+            color: #e74c3c;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .status-unknown {
+            background-color: #f5f5f5;
+            color: #7f8c8d;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">📦 Employee Dashboard - Assigned Bookings</h2>
+            <a href="javascript:history.back()" class="back-button">
+                <span>←</span> Back
+            </a>
+        </div>
+        
+        <table class="booking-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Product</th>
+                    <th>Rental Date</th>
+                    <th>Return Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings %}
+                <tr>
+                    <td>{{ booking.id }}</td>
+                    <td>{{ booking.customer.user.name }}</td>
+                    <td>{{ booking.product_size.product.name }}</td>
+                    <td>{{ booking.booked_at|date:"Y-m-d" }}</td>
+                    <td>{{ booking.return_by|date:"Y-m-d" }}</td>
+                    <td>
+                        {% if booking.status == 0 %}
+                            <span class="status-booked">⏳ Booked</span>
+                        {% elif booking.status == 1 %}
+                            <span class="status-completed">✅ Completed</span>
+                        {% elif booking.status == 2 %}
+                            <span class="status-canceled">❌ Canceled</span>
+                        {% else %}
+                            <span class="status-unknown">❓ Unknown</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-state">No assigned bookings available.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

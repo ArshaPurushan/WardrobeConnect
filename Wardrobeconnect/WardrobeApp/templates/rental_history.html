@@ -1,11 +1,161 @@
-{% extends 'base.html' %}
-{% block content %}
-<h2>Past Rentals</h2>
-<ul>
-    {% for rental in rentals %}
-        <li>{{ rental.item_name }} - Rented on {{ rental.date_rented }}</li>
-    {% empty %}
-        <li>No past rentals found.</li>
-    {% endfor %}
-</ul>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rental History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .back-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .back-button:hover {
+            background-color: #45a049;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .active {
+            color: green;
+        }
+
+        .completed {
+            color: blue;
+        }
+
+        .canceled {
+            color: red;
+        }
+
+        .rental-item {
+            margin-bottom: 20px;
+        }
+
+        .rental-item h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .rental-item p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="{% url 'customer_dashboard' %}" class="back-button">Back to Dashboard</a>
+
+    <h1>Your Rental History</h1>
+
+    <div class="rental-item">
+        <h3>Current Rentals</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Booking Date</th>
+                    <th>Return By</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings %}
+                <tr>
+                    <td>{{ booking.product_size.product.name }} (Size: {{ booking.product_size.size }})</td>
+                    <td>{{ booking.booked_at }}</td>
+                    <td>{{ booking.return_by }}</td>
+                    <td class="status {% if booking.status == 1 %}completed{% elif booking.status == 2 %}canceled{% else %}active{% endif %}">
+                        {% if booking.status == 0 %}Active{% elif booking.status == 1 %}Completed{% else %}Canceled{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No current rentals.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="rental-item">
+        <h3>Past Rentals</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Booking Date</th>
+                    <th>Return Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rental in completed_rentals %}
+                <tr>
+                    <td>{{ rental.product_size.product.name }} (Size: {{ rental.product_size.size }})</td>
+                    <td>{{ rental.booked_at }}</td>
+                    <td>{{ rental.returned_at }}</td>
+                    <td class="status completed">Completed</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No past rentals.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

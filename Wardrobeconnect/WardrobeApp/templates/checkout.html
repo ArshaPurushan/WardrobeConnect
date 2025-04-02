@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'baseUser.html' %}
 
 {% block content %}
 <div class="container mt-4">
@@ -26,33 +26,29 @@
                         <tbody>
                             {% for item in cart_items %}
                             <tr>
-                                <td>{{ item.product.name }}</td>
+                                <td>{{ item.product_size.product.name }}</td>
                                 <td>{{ item.quantity }}</td>
-                                <td>{{ item.product.size }}</td>
-                                <td>₹{{ item.product.price }}</td>  <!-- ✅ Ensure product price is displayed -->
+                                <td>{{ item.product_size.size }}</td>
+                                <td>₹{{ item.product_size.product.price }}</td>
                             </tr>
+                            {% endfor %}
                             
                             <tr>
                                 <td colspan="3" align="right"><strong>Subtotal:</strong></td>
-                                <td><strong>₹{{ subtotal|floatformat:2 }}</strong></td>  <!-- ✅ Ensure subtotal is displayed -->
+                                <td><strong>₹{{ subtotal|floatformat:2 }}</strong></td>
                             </tr>
                             
                             <tr>
                                 <td colspan="3" align="right" style="color: red;"><strong>Security Deposit:</strong></td>
-                                <td style="color: red;"><strong>₹{{ security_deposit|floatformat:2 }}</strong></td>  <!-- ✅ Ensure security deposit is displayed -->
+                                <td style="color: red;"><strong>₹{{ security_deposit|floatformat:2 }}</strong></td>
                             </tr>
                             
                             <tr>
                                 <td colspan="3" align="right" style="color: green;"><strong>Final Total:</strong></td>
-                                <td style="color: green;"><strong>₹{{ grand_total|floatformat:2 }}</strong></td>  <!-- ✅ Ensure grand total is displayed -->
+                                <td style="color: green;"><strong>₹{{ grand_total|floatformat:2 }}</strong></td>
                             </tr>
-                            
-                            {% endfor %}
                         </tbody>
                     </table>
-                    
-            
-                    
                 </div>
             </div>
 
@@ -100,7 +96,9 @@
 
             <!-- Proceed to Payment Button -->
             {% if booking %}
-                <a href="{% url 'payment_page' booking.id %}" class="btn btn-lg btn-success w-100">💳 Proceed to Payment (₹{{ final_total|floatformat:2 }})</a>
+                <a href="{% url 'payment_page' booking.id %}" class="btn btn-lg btn-success w-100">
+                    💳 Proceed to Payment (₹{{ grand_total|floatformat:2 }})
+                </a>
             {% else %}
                 <p class="text-danger">No booking found. Please place an order first.</p>
             {% endif %}
@@ -111,36 +109,32 @@
         </div>
     {% else %}
         <div class="alert alert-warning text-center">
-            <p>Your cart is empty. <a href="{% url 'home' %}" class="alert-link">Continue Shopping</a></p>
+            <p>Your cart is empty. <a href="{% url 'customer_dashboard' %}" class="alert-link">Continue Shopping</a></p>
         </div>
     {% endif %}
 </div>
 
 <script>
-    document.getElementById("address").addEventListener("input", function() {
-        document.getElementById("confirmAddress").textContent = this.value || "[Enter Address]";
-    });
-    document.getElementById("name").addEventListener("input", function() {
-        document.getElementById("confirmName").textContent = this.value || "[Enter Name]";
-    });
-    document.getElementById("phone").addEventListener("input", function() {
-        document.getElementById("confirmPhone").textContent = this.value || "[Enter Phone]";
-    });
-    document.getElementById("landmark").addEventListener("input", function() {
-        document.getElementById("confirmLandmark").textContent = this.value || "[Enter Landmark]";
-    });
+    function updateConfirmField(fieldId, confirmId, placeholder) {
+        document.getElementById(fieldId).addEventListener("input", function() {
+            document.getElementById(confirmId).textContent = this.value || placeholder;
+        });
+    }
+
+    updateConfirmField("name", "confirmName", "[Enter Name]");
+    updateConfirmField("phone", "confirmPhone", "[Enter Phone]");
+    updateConfirmField("address", "confirmAddress", "[Enter Address]");
+    updateConfirmField("landmark", "confirmLandmark", "[Enter Landmark]");
 
     document.getElementById("useSameDetails").addEventListener("change", function() {
         if (this.checked) {
-            document.getElementById("confirmName").textContent = document.getElementById("name").value;
-            document.getElementById("confirmPhone").textContent = document.getElementById("phone").value;
-            document.getElementById("confirmAddress").textContent = document.getElementById("address").value;
-            document.getElementById("confirmLandmark").textContent = document.getElementById("landmark").value;
+            ["name", "phone", "address", "landmark"].forEach(field => {
+                document.getElementById(`confirm${field.charAt(0).toUpperCase() + field.slice(1)}`).textContent = document.getElementById(field).value;
+            });
         } else {
-            document.getElementById("confirmName").textContent = "[Enter Name]";
-            document.getElementById("confirmPhone").textContent = "[Enter Phone]";
-            document.getElementById("confirmAddress").textContent = "[Enter Address]";
-            document.getElementById("confirmLandmark").textContent = "[Enter Landmark]";
+            ["confirmName", "confirmPhone", "confirmAddress", "confirmLandmark"].forEach(confirmId => {
+                document.getElementById(confirmId).textContent = `[Enter ${confirmId.replace('confirm', '')}]`;
+            });
         }
     });
 </script>

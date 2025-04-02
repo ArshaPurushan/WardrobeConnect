@@ -1,26 +1,57 @@
 {% extends "base.html" %}
-
+{% load static %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center mb-4">Manage Employees</h2>
+<style>
+    body {
+        background-color: #f0e6ff;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .container {
+        background-color: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 30px;
+        margin-top: 30px;
+    }
+    .table thead {
+        background-color: #e0d0ff;
+        color: #4a4a4a;
+    }
+    .img-thumbnail {
+        max-width: 100px;
+        max-height: 100px;
+        object-fit: cover;
+        border-radius: 10px;
+    }
+    .back-btn {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background-color: #d8bfd8;
+        color: #333;
+    }
+</style>
 
-    <!-- Add Employee Button -->
+<div class="container position-relative">
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary back-btn">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+
+    <h2 class="text-center mb-4" style="color: #6a5acd;">Manage Employees</h2>
+
     <div class="d-flex justify-content-between mb-3">
-        <h4>Employee List</h4>
+        <h4 style="color: #6a5acd;">Employee List</h4>
         <a href="{% url 'add_employee' %}" class="btn btn-primary">
             <i class="fas fa-user-plus"></i> Add Employee
         </a>
     </div>
 
-    <!-- Employee Table -->
-    <table class="table table-striped">
-        <thead class="table-dark">
+    <table class="table table-hover">
+        <thead>
             <tr>
                 <th>Image</th>
                 <th>Name</th>
-                <th>Username</th>
                 <th>Email</th>
-                <th>Password</th>
                 <th>Role</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -31,24 +62,17 @@
             <tr>
                 <td>
                     {% if employee.profile_picture %}
-                        <img src="{{ employee.profile_picture.url }}" class="img-fluid mb-3" alt="{{ employee.name }}">
+                        <img src="{{ employee.profile_picture.url }}" class="img-fluid img-thumbnail" alt="Profile Image">
                     {% else %}
-                        <img src="/static/default-profile.png" class="img-fluid mb-3" alt="Default Image">
+                        <img src="{% static 'img/default-profile.png' %}" class="img-fluid img-thumbnail" alt="Default Profile">
                     {% endif %}
                 </td>
                 <td>{{ employee.name }}</td>
-                <td>{{ employee.username }}</td>
-                <td>{{ employee.email }}</td>
+                <td>{{ employee.user.email }}</td>
+                <td>{{ employee.get_position_display }}</td>
                 <td>
-                    <input type="password" value="{{ employee.password }}" class="form-control" id="password{{ employee.id }}" readonly>
-                    <button class="btn btn-sm btn-secondary mt-1" onclick="togglePassword({{ employee.id }})">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </td>
-                <td>{{ employee.role }}</td>
-                <td>
-                    <span class="badge bg-{% if employee.status == 'active' %}success{% else %}danger{% endif %}">
-                        {{ employee.get_status_display }}
+                    <span class="badge bg-{% if employee.user.status %}success{% else %}danger{% endif %}">
+                        {% if employee.user.status %}Active{% else %}Inactive{% endif %}
                     </span>
                 </td>
                 <td>
@@ -68,56 +92,30 @@
     </table>
 </div>
 
-<!-- Modals for Employee Details -->
 {% for employee in employees %}
 <div class="modal fade" id="employeeDetails{{ employee.id }}" tabindex="-1" aria-labelledby="employeeDetailsLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content" style="background-color: #f0e6ff;">
+            <div class="modal-header" style="background-color: #e0d0ff;">
                 <h5 class="modal-title">Employee Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body text-center">
                 {% if employee.profile_picture %}
-                    <img src="{{ employee.profile_picture.url }}" class="img-fluid mb-3" alt="{{ employee.name }}">
+                    <img src="{{ employee.profile_picture.url }}" class="img-fluid img-thumbnail mb-3" alt="Profile Image">
                 {% else %}
-                    <img src="/static/default-profile.png" class="img-fluid mb-3" alt="Default Image">
+                    <img src="{% static 'img/default-profile.png' %}" class="img-fluid img-thumbnail mb-3" alt="Default Profile">
                 {% endif %}
-                <p><strong>Name:</strong> {{ employee.name }}</p>
-                <p><strong>Username:</strong> {{ employee.username }}</p>
-                <p><strong>Email:</strong> {{ employee.email }}</p>
-                <p><strong>Password:</strong> <span id="modalPassword{{ employee.id }}">••••••••</span>
-                    <button class="btn btn-sm btn-secondary" onclick="toggleModalPassword({{ employee.id }})">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </p>
-                <p><strong>Role:</strong> {{ employee.role }}</p>
-                <p><strong>Status:</strong> {{ employee.get_status_display }}</p>
+                <div class="text-start">
+                    <p><strong>Name:</strong> {{ employee.name }}</p>
+                    <p><strong>Email:</strong> {{ employee.user.email }}</p>
+                    <p><strong>Role:</strong> {{ employee.get_position_display }}</p>
+                    <p><strong>Status:</strong> {% if employee.user.status %}Active{% else %}Inactive{% endif %}</p>
+                </div>
             </div>
         </div>
     </div>
 </div>
 {% endfor %}
-
-<!-- JavaScript to Toggle Password Visibility -->
-<script>
-    function togglePassword(id) {
-        var passwordField = document.getElementById("password" + id);
-        if (passwordField) {
-            passwordField.type = (passwordField.type === "password") ? "text" : "password";
-        }
-    }
-
-    function toggleModalPassword(id) {
-        var modalPasswordField = document.getElementById("modalPassword" + id);
-        var originalPasswordField = document.getElementById("password" + id);
-
-        if (modalPasswordField && originalPasswordField) {
-            modalPasswordField.innerText = (modalPasswordField.innerText === "••••••••") 
-                ? originalPasswordField.value 
-                : "••••••••";
-        }
-    }
-</script>
 
 {% endblock %}

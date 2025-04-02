@@ -1,41 +1,41 @@
 from django.conf import settings
 from django.urls import path
 from django.conf.urls.static import static
-from . import views
-
+from . import views # Ensure views are correctly imported
 
 
 urlpatterns = [
-    
     #         MAIN PAGES
     path("", views.index, name="index"),
-    path("about/", views.about, name="about"),
-    path("services/", views.services, name="services"),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
 
- 
-    #       AUTHENTICATION
-    path("login/", views.login_view, name="login"),
-    path("user_register/", views.user_register, name="user_register"),
-
-
+   
     #       DASHBOARD ROUTES
     path("admin_dashboard/", views.admin_dashboard, name="admin_dashboard"),
     path("employee_dashboard/", views.employee_dashboard, name="employee_dashboard"),
     path("customer_dashboard/", views.customer_dashboard, name="customer_dashboard"),
 
 
-    #       USER MANAGEMENT
-    path("manage-users/", views.manage_users, name="manage_users"),
-    path("manage-users/<str:status>/", views.manage_users, name="manage_users"),
-    path("approve-user/<int:user_id>/", views.approve_user, name="approve_user"),
-    path("reject-user/<int:user_id>/", views.reject_user, name="reject_user"),
+    #         USER REGISTRATION
+    path('register/', views.register, name='register'),
+
     
-    # Employee Management
+    #         USER MANAGEMENT
+    path('manage-users/', views.manage_users, name='manage_users'),  # Default view
+    path('manage-users/<str:status>/', views.manage_users, name='manage_users_with_status'),
+    path('report_user/<int:user_id>/', views.report_user, name='report_user'),
+    path('block_user/<int:user_id>/', views.block_user, name='block_user'),
+    path('activate_user/<int:user_id>/', views.activate_user, name='activate_user'),
+
+    #         EMPLOYEE MANAGEMENT
     path('manage_employees/', views.manage_employees, name='manage_employees'),
     path('add_employee/', views.add_employee, name='add_employee'),
     path('edit_employee/<int:employee_id>/', views.edit_employee, name='edit_employee'),
     path('delete_employee/<int:employee_id>/', views.delete_employee, name='delete_employee'),
-   
+
+
+
     #   INVENTORY MANAGEMENT (admin)
     path("admin_manage-inventory/", views.admin_manage_inventory, name="admin_manage_inventory"),
     path("admin_manage-inventory/approve/<int:product_id>/", views.approve_product, name="approve_product"),
@@ -43,87 +43,96 @@ urlpatterns = [
     #path("admin_manage-inventory/edit/<int:product_id>/", views.edit_product, name="edit_product"),
     #path("admin_manage-inventory/delete/<int:product_id>/", views.delete_product, name="delete_product"),
 
-
-    #   INVENTORY MANAGEMENT (admin)
+    #   INVENTORY MANAGEMENT (employee)
     path("employee_inventory/", views.employee_inventory, name="employee_inventory"),
-    path("employee_add_product/", views.employee_add_product, name="employee_add_product"),
+    path("employee_add_product/", views.add_product, name="employee_add_product"),
+    path("employee_edit_product/<int:product_id>/", views.edit_product, name="employee_edit_product"),  # For editing
+    #path('edit_product/<int:product_id>/', views.edit_product, name='edit_product'),
     path("delete_product/<int:product_id>/", views.delete_product, name="delete_product"),
     path("update_availability/<int:product_id>/", views.update_availability, name="update_availability"),
 
 
+    #       SEARCH
+    path('search/', views.search, name='search'),
+    path("product_details/<int:product_id>/", views.product_details, name="product_details"), 
 
-    #     PRODUCT LISTING & SEARCH
-    path("search/", views.search, name="search"),
-    path("trending_products/", views.trending_products, name="trending_products"),
-
-     #     PRODUCT VIEW & CART
-    path('product_details/<int:product_id>/', views.product_details, name='product_details'),
-    path("check_availability/<int:product_id>/", views.check_availability, name="check_availability"),
-    path('cart/add/<int:product_id>/', views.add_to_cart, name='add_to_cart'),
+    #       CART
     path('cart/', views.cart, name='cart'),
-    path('cart/remove/<int:product_id>/', views.remove_from_cart, name='remove_from_cart'),
-    path('cart/update/<int:product_id>/', views.update_cart, name='update_cart'),
+    path('add_to_cart/<int:product_id>/<int:size_id>/', views.add_to_cart, name='add_to_cart'),
+    path("remove_from_cart/<int:cart_id>/", views.remove_from_cart, name="remove_from_cart"),
+
+    path('update_cart/<int:product_id>/', views.update_cart, name='update_cart'),
     path('clear_cart/', views.clear_cart, name='clear_cart'),
 
-    #       CHECKOUT
+
     path("checkout/", views.checkout, name="checkout"),
-    path("invoice/", views.invoice, name="invoice"),  # ✅ Invoice Page
+
+
     path("payment_page/<int:booking_id>/", views.payment_page, name="payment_page"),
     path("confirm_order/<int:booking_id>/", views.confirm_order, name="confirm_order"),
-    path("order_history/", views.order_history, name="order_history"),
 
 
-    path('wishlist/', views.wishlist, name='wishlist'),
-    path('wishlist/add/<int:product_id>/', views.add_to_wishlist, name='add_to_wishlist'),
-    path('wishlist/remove/<int:product_id>/', views.remove_from_wishlist, name='remove_from_wishlist'),
+    path("invoice/<int:booking_id>/", views.invoice, name="invoice"),
+    path("rental-history/", views.rental_history, name="rental_history"),
+
+    
+
+    #       WISHlist
+    path("wishlist/", views.wishlist_view, name="wishlist"),
+    path("wishlist/add/<int:product_id>/", views.add_to_wishlist, name="add_to_wishlist"),
+    path("wishlist/remove/<int:product_id>/", views.remove_from_wishlist, name="remove_from_wishlist"),
+    path('wishlist/add-to-cart/<int:product_id>/', views.add_to_cart_from_wishlist, name='add_to_cart_from_wishlist'),
 
 
 
-    #    RENTAL & PAYMENT PROCESSING
-    path("rent/<int:product_id>/", views.rent_product, name="rent_product"),
-    #path("booking/confirmation/<int:booking_id>/", views.booking_confirmation, name="booking_confirmation"),
-    #path("payment_page/<int:booking_id>/", views.payment_page, name="payment_page"),  # ✅ Ensure it expects booking_id
-    #path("confirm_order/<int:booking_id>/", views.confirm_order, name="confirm_order"),
+    path("admin_payment/", views.admin_payment, name="admin_payment"),  # ✅ Added admin_payment
+
+    path("employee_bookings/", views.employee_bookings, name="employee_bookings"),
 
 
-    #   FEEDBACK & COMPLAINTS (ADMIN & EMPLOYEE)
-    #path("feedback/submit/", views.feedback, name="feedback"),
-    #path("complaint/submit/", views.complaint, name="complaint"),
+    path("complaints/", views.complaints, name="complaints"),
+
+
+     #   Review
+    path('product_details/<int:product_id>/', views.product_details, name='product_details'),
+    path('product/<int:product_id>/feedback/', views.submit_feedback, name='feedback'),
+
+    #   COMPLAINT MANAGEMENT (admin)
     path("admin_resolve_complaints/", views.admin_resolve_complaints, name="admin_resolve_complaints"),  
-    path("reply_complaint/<int:complaint_id>/", views.reply_complaint, name="reply_complaint"),
+    path("reply_user_complaint/<int:complaint_id>/", views.reply_user_complaint, name="reply_user_complaint"),
+
+    #   COMPLAINT MANAGEMENT (employee)
     path("employee_complaints/", views.employee_complaints, name="employee_complaints"),
     path("resolve_complaints/<int:complaint_id>/", views.resolve_complaints, name="resolve_complaints"),
-    
 
 
-    #    RENTAL HISTROY
-    path('rental-history/', views.rental_history, name='rental_history'),
+
+     #   REPORT MANAGEMENT (admin)
+    path('reports/', views.view_reports, name='view_reports'),
+    path('reports/approve/<int:report_id>/', views.approve_report, name='approve_report'),
+    path('reports/reject/<int:report_id>/', views.reject_report, name='reject_report'),
+    path('admin/generate_report/', views.generate_admin_report, name='generate_admin_report'),
+    path('export/reports/pdf/', views.export_reports_pdf, name='export_reports_pdf'),
+    #path('export/reports/excel/', views.export_reports_excel, name='export_reports_excel'),
+
+     #   REPORT MANAGEMENT (employee)
+    path("employee_reports/", views.employee_reports, name="employee_reports"),
 
     #   PROFILE MANAGEMENT
-    path('profile-management/', views.profile_management, name='profile_management'),
-    path('edit_profile/', views.edit_profile, name='edit_profile'),
+    path('profile_management/', views.profile_management, name='profile_management'),
     path('change_password/', views.change_password, name='change_password'),
 
+    #   RENTAL HISTROY MANAGEMENT
+    path('rental_history/', views.rental_history, name='rental_history'),
 
-    #   FEEDBACK & COMPLAINTS (CUSTOMER)
-    path("feedback/submit/", views.feedback, name="feedback"),
-    path("complaint/submit/", views.complaint, name="complaint"),
+    #   CHATBOT
+    path("chatbot/", views.chatbot_view, name="chatbot"),
 
-    
-
-    #        CHATBOT SUPPORT
-    path("chatbot", views.chatbot, name="chatbot"),
-
-
-    #         REPORTS
-     path('view_reports/', views.view_reports, name='view_reports'),
-    path('view_reports/<int:report_id>/', views.update_report_status, name='update_report_status'),
-    path("financial_reports/", views.financial_reports, name="financial_reports"),
-
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    #   OTHERS
+    path('sustainability-impact/', views.sustainability_impact, name='sustainability_impact'),
+    path('support-center/', views.support_center, name='support_center'),
 
 
-# Serve media files in development
-#if settings.DEBUG:
-#    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-#urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

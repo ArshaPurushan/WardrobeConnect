@@ -1,55 +1,429 @@
-{% extends 'base.html' %}
-{% block content %}
-
-<div class="container mt-4">
-    <h2>Add New Product</h2>
-
-    <!-- Success/Error Messages -->
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-
-    <form method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
-        <div class="mb-3">
-            <label class="form-label">Product Name</label>
-            <input type="text" name="name" class="form-control" required>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WardrobeConnect | Add Product</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #6b8eba;
+            --accent-color: #ff6b6b;
+            --light-color: #f4f7fc;
+            --dark-color: #2c3e50;
+            --success-color: #28a745;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light-color);
+            color: var(--dark-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 30px;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e1e5eb;
+        }
+        
+        .page-title {
+            color: var(--primary-color);
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .back-button {
+            background-color: var(--light-color);
+            color: var(--dark-color);
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 8px 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        
+        .back-button i {
+            margin-right: 8px;
+        }
+        
+        .back-button:hover {
+            background-color: #e1e5eb;
+        }
+        
+        .form-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .form-section {
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid var(--secondary-color);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            background-color: #f9f9f9;
+            font-size: 16px;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 2px rgba(107, 142, 186, 0.2);
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        select[multiple] {
+            height: auto;
+            min-height: 120px;
+        }
+        
+        .image-preview-container {
+            margin-top: 10px;
+            border: 1px dashed #ddd;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        
+        .image-preview-container img {
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            margin-top: 10px;
+        }
+        
+        .upload-btn {
+            cursor: pointer;
+            background-color: var(--light-color);
+            padding: 8px 15px;
+            border-radius: var(--border-radius);
+            display: inline-block;
+        }
+        
+        .upload-btn:hover {
+            background-color: #e1e5eb;
+        }
+        
+        .button-container {
+            margin-top: 30px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .btn-secondary {
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+        
+        .btn-secondary:hover {
+            background-color: #e1e5eb;
+        }
+        
+        .btn-add {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .btn-add:hover {
+            background-color: var(--primary-color);
+        }
+        
+        .size-stock-container {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: var(--border-radius);
+        }
+        
+        .logo {
+            color: var(--primary-color);
+            font-weight: bold;
+            font-size: 22px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .form-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <span class="logo">WardrobeConnect</span>
+                <h1 class="page-title">Add New Product</h1>
+            </div>
+            <a href="javascript:history.back()" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
         </div>
+        
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="form-container">
+                <!-- Left Column -->
+                <div>
+                    <div class="form-section">
+                        <h3 class="section-title">Product Details</h3>
+                        
+                        <div class="form-group">
+                            <label for="name">Product Name</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="price">Price (₹)</label>
+                            <input type="number" id="price" name="price" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <textarea id="description" name="description" required></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="availability">Availability Status</label>
+                            <select id="availability" name="availability" required>
+                                <option value="0">Available</option>
+                                <option value="1">Rented</option>
+                                <option value="2">Returned</option>
+                                <option value="3">Damaged</option>
+                                <option value="4">Pending Approval</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3 class="section-title">Product Media</h3>
+                        
+                        <div class="form-group">
+                            <label for="image">Product Image</label>
+                            <div class="image-preview-container">
+                                <label for="image" class="upload-btn">
+                                    <i class="fas fa-upload"></i> Choose Image
+                                </label>
+                                <input type="file" id="image" name="image" accept="image/*" required onchange="previewImage()">
+                                <img id="imagePreview" src="" alt="Image Preview" style="display: none;">
+                                <p id="no-image" style="color: #888; margin-top: 10px;">No image selected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column -->
+                <div>
+                    <div class="form-section">
+                        <h3 class="section-title">Product Classification</h3>
+                        
+                        <div class="form-group">
+                            <label for="category">Category</label>
+                            <select id="category" name="category" required>
+                                <option value="0">Clothing</option>
+                                <option value="1">Accessories</option>
+                                <option value="2">Footwear</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="subcategory">Subcategory</label>
+                            <select id="subcategory" name="subcategory" required>
+                                <option value="0">Casual</option>
+                                <option value="1">Formal</option>
+                                <option value="2">Party Wear</option>
+                                <option value="3">Traditional</option>
+                                <option value="4">Sportswear</option>
+                                <option value="5">Winter Wear</option>
+                                <option value="6">Jewelry</option>
+                                <option value="7">Watches</option>
+                                <option value="8">Bags</option>
+                                <option value="9">Shoes</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="gender">Gender</label>
+                            <select id="gender" name="gender" required>
+                                <option value="0">Male</option>
+                                <option value="1">Female</option>
+                                <option value="2">Unisex</option>
+                                <option value="3">Boys</option>
+                                <option value="4">Girls</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3 class="section-title">Inventory Management</h3>
+                        
+                        <div class="form-group">
+                            <label for="sizes">Available Sizes (Hold Ctrl/Cmd to select multiple)</label>
+                            <select name="sizes" id="sizes" multiple required>
+                                <option value="S">Small</option>
+                                <option value="M">Medium</option>
+                                <option value="L">Large</option>
+                                <option value="XL">X-Large</option>
+                                <option value="XXL">XX-Large</option>
+                            </select>
+                            
+                            <button type="button" class="btn-add" onclick="addSizeStock()">
+                                <i class="fas fa-plus"></i> Add Stock for Selected Sizes
+                            </button>
+                            
+                            <div class="size-stock-container" id="size-stock-inputs"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-container">
+                <a href="javascript:history.back()" class="button button-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Product
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+    // JavaScript to dynamically add size stock inputs
+    function addSizeStock() {
+        const sizes = document.getElementById('sizes').selectedOptions;
+        const sizeStockInputs = document.getElementById('size-stock-inputs');
+        
+        if (sizes.length === 0) {
+            sizeStockInputs.innerHTML = '<p style="color: #dc3545;">Please select at least one size</p>';
+            return;
+        }
+        
+        sizeStockInputs.innerHTML = '';  // Clear existing inputs
+        
+        Array.from(sizes).forEach(size => {
+            const sizeLabel = size.text;
+            const sizeValue = size.value;
+            
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            div.innerHTML = `
+                <label for="stock_${sizeValue}">${sizeLabel} Stock</label>
+                <input type="number" id="stock_${sizeValue}" name="stock_${sizeValue}" min="0" required>
+            `;
+            sizeStockInputs.appendChild(div);
+        });
+    }
 
-        <div class="mb-3">
-            <label class="form-label">Category</label>
-            <select name="category" class="form-control" required>
-                {% for choice_key, choice_value in CATEGORY_CHOICES %}
-                    <option value="{{ choice_key }}">{{ choice_value }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Price ($)</label>
-            <input type="number" name="price" step="0.01" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Stock Quantity</label>
-            <input type="number" name="stock" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Description</label>
-            <textarea name="description" class="form-control"></textarea>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Upload Image</label>
-            <input type="file" name="image" class="form-control">
-        </div>
-
-        <button type="submit" class="btn btn-success">Add Product</button>
-        <a href="{% url 'employee_inventory' %}" class="btn btn-secondary">Back</a>
-    </form>
-</div>
-
-{% endblock %}
+    // Image preview function
+    function previewImage() {
+        const file = document.getElementById("image").files[0];
+        const reader = new FileReader();
+        const imagePreview = document.getElementById("imagePreview");
+        const noImageText = document.getElementById("no-image");
+        
+        reader.onloadend = function () {
+            imagePreview.src = reader.result;
+            imagePreview.style.display = "block";
+            noImageText.style.display = "none";
+        }
+        
+        if (file) {
+            reader.readAsDataURL(file);
+        } else {
+            imagePreview.style.display = "none";
+            noImageText.style.display = "block";
+        }
+    }
+    </script>
+</body>
+</html>

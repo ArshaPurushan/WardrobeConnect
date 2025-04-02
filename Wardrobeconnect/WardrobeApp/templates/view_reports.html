@@ -1,59 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Reports</title>
+    <title>Clothing Rental Management Reports</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-        th { background-color: #f4f4f4; }
-        button { padding: 5px 10px; margin: 2px; cursor: pointer; }
-        .approved { color: green; }
-        .rejected { color: red; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .dashboard {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .report-selector {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            min-width: 250px;
+        }
+        .report-selector button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f0f0f0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .report-selector button:hover {
+            background-color: #e0e0e0;
+        }
+        .report-selector button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .report-content {
+            width: 100%;
+        }
+        .no-reports {
+            background-color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f8f8;
+            font-weight: bold;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .action-buttons button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .approve-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .reject-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .status-approved { color: green; }
+        .status-rejected { color: red; }
+        .status-pending { color: orange; }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 15px;
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
+    <a href="#" class="back-btn" onclick="window.history.back()">← Back to Dashboard</a>
 
-    <h2>Sales Reports</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Date</th>
-                <th>Total Sales</th>
-                <th>Profit</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for report in reports %}
-            <tr id="report-{{ report.id }}">
-                <td>{{ report.id }}</td>
-                <td>{{ report.date }}</td>
-                <td>${{ report.total_sales }}</td>
-                <td>${{ report.profit }}</td>
-                <td class="status">{{ report.report_status }}</td>
-                <td>
-                    <button onclick="updateStatus({{ report.id }}, 'approved')">Approve</button>
-                    <button onclick="updateStatus({{ report.id }}, 'rejected')">Reject</button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="dashboard">
+        <div class="report-selector">
+            <button onclick="loadReport('sales')" class="active">Sales Reports</button>
+            <button onclick="loadReport('user-verification')">User Verification</button>
+            <button onclick="loadReport('rental-transactions')">Rental Transactions</button>
+            <button onclick="loadReport('revenue')">Revenue Report</button>
+            <button onclick="loadReport('product-availability')">Product Availability</button>
+            <button onclick="loadReport('employee-performance')">Employee Performance</button>
+        </div>
+        
+        <div class="report-content">
+            <h2>Sales Reports</h2>
+            {% if reports %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date</th>
+                            <th>Total Sales</th>
+                            <th>Profit</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr id="report-{{ report.id }}">
+                            <td>{{ report.id }}</td>
+                            <td>{{ report.date }}</td>
+                            <td>${{ report.total_sales }}</td>
+                            <td>${{ report.profit }}</td>
+                            <td class="status status-{{ report.report_status }}">{{ report.report_status }}</td>
+                            <td class="action-buttons">
+                                <button class="approve-btn" onclick="updateStatus({{ report.id }}, 'approved')">Approve</button>
+                                <button class="reject-btn" onclick="updateStatus({{ report.id }}, 'rejected')">Reject</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="no-reports">
+                    <h3>No Reports Available</h3>
+                    <p>There are currently no sales reports to display.</p>
+                    <p>Reports will appear here once they are generated by the system.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
 
     <script>
         function updateStatus(reportId, status) {
             $.ajax({
-                url: `/api/sales-reports/${reportId}/`,  
+                url: `/api/sales-reports/${reportId}/`,
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ status: status }),
                 success: function(response) {
-                    $(`#report-${reportId} .status`).text(status);
+                    const statusCell = $(`#report-${reportId} .status`);
+                    statusCell.removeClass('status-approved status-rejected status-pending');
+                    statusCell.addClass(`status-${status}`);
+                    statusCell.text(status);
                     alert(`Report ${reportId} marked as ${status}`);
                 },
                 error: function(error) {
@@ -61,7 +177,36 @@
                 }
             });
         }
-    </script>
 
+        function loadReport(reportType) {
+            // Highlight active button
+            $('.report-selector button').removeClass('active');
+            $(`button:contains('${reportType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}')`)
+                .addClass('active');
+
+            // Placeholder for future implementation
+            switch(reportType) {
+                case 'sales':
+                    // Current view is sales reports
+                    break;
+                case 'user-verification':
+                    alert('User Verification Report loading...');
+                    break;
+                case 'rental-transactions':
+                    alert('Rental Transactions Report loading...');
+                    break;
+                case 'revenue':
+                    alert('Revenue Report loading...');
+                    break;
+                case 'product-availability':
+                    alert('Product Availability Report loading...');
+                    break;
+                case 'employee-performance':
+                    alert('Employee Performance Report loading...');
+                    break;
+            }
+        }
+    </script>
 </body>
 </html>
+{% endblock %}

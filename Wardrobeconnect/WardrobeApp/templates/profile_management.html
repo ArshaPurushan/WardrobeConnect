@@ -1,9 +1,52 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+
 {% block content %}
-<h2>Profile Management</h2>
-<form method="POST" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Update Profile</button>
-</form>
+<div class="profile-container">
+    <h1>Profile Management</h1>
+    <div class="profile-card">
+        <div class="profile-image-section">
+            {% if user_profile.profile_picture %}
+                <img src="{{ user_profile.profile_picture.url }}" alt="{{ user.username }}" class="profile-image">
+            {% else %}
+                <img src="/static/default-avatar.png" alt="{{ user.username }}" class="profile-image">
+            {% endif %}
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="file" name="profile_picture" accept="image/*">
+                <button type="submit">Update Profile Picture</button>
+            </form>
+        </div>
+        <div class="profile-details">
+            <h2>{{ user.username }}</h2>
+            <p class="user-role">{{ user.get_role_display }}</p>
+            <form method="POST">
+                {% csrf_token %}
+                <label for="email">Email:</label>
+                <input type="email" name="email" value="{{ user.email }}" required>
+
+                <label for="phone">Phone:</label>
+                <input type="text" name="phone" value="{{ user_profile.phone }}" required>
+
+                <button type="submit">Update Details</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="password-reset">
+        <h2>Change Password</h2>
+        <form method="POST" action="{% url 'change_password' %}">
+            {% csrf_token %}
+            <label for="current_password">Current Password:</label>
+            <input type="password" name="current_password" required>
+
+            <label for="new_password">New Password:</label>
+            <input type="password" name="new_password" required>
+
+            <label for="confirm_password">Confirm Password:</label>
+            <input type="password" name="confirm_password" required>
+
+            <button type="submit">Change Password</button>
+        </form>
+    </div>
+</div>
 {% endblock %}

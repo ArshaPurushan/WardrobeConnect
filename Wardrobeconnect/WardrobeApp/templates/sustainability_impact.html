@@ -1,0 +1,15 @@
+{% extends 'baseUser.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Sustainability Impact</h2>
+    <p>Track your eco-friendly fashion choices and learn how your decisions contribute to a sustainable future.</p>
+    
+    <div class="impact-card">
+        <h3>Your Impact</h3>
+        <p>You have saved <strong>15 kg</strong> of CO₂ emissions by choosing sustainable fashion.</p>
+    </div>
+    
+    <a href="{% url 'customer_dashboard' %}" class="btn">Back to Home</a>
+</div>
+{% endblock %}

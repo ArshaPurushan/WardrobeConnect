@@ -26,14 +26,14 @@
                     </td>
                     <td>{{ complaint.description }}</td>
                     <td>
-                        {% if complaint.status == "Resolved" %}
+                        {% if complaint.status == 2 %}  <!-- 2 = Resolved -->
                             <span class="badge badge-success">Resolved</span>
-                        {% else %}
+                        {% else %}  <!-- 0 = Pending -->
                             <span class="badge badge-warning">Pending</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if complaint.status != "Resolved" %}
+                        {% if complaint.status == 0 %}  <!-- 0 = Pending -->
                             <a href="{% url 'resolve_complaints' complaint.id %}" class="btn btn-success btn-sm">✔ Resolve</a>
                         {% else %}
                             <button class="btn btn-secondary btn-sm" disabled>✔ Resolved</button>
