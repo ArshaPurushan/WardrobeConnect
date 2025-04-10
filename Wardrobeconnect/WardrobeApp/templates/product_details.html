@@ -103,35 +103,34 @@
                         </form>
 
                         <!-- Add to Wishlist -->
-                        <button class="btn btn-outline-warning btn-lg" onclick="addToWishlist()">Add to Wishlist</button>
+                        <a href="{% url 'add_to_wishlist' product.id %}" class="btn btn-outline-danger btn-wishlist">Wishlist</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Chatbot Accessories Recommendation Section -->
-    <div class="accessory-recommendations bg-light p-4 rounded-4 mt-5 shadow-sm">
-        <h4 class="text-center mb-4">Suggested Accessories for You</h4>
-        
-        <!-- Display accessories that the chatbot suggests -->
-        <div class="row row-cols-1 row-cols-md-3 g-4">
-            {% for accessory in product.accessories.all %}
+    <!-- Updated Product Recommendations Section -->
+    <div class="recommendations bg-light p-4 rounded-4 mt-5 shadow-sm">
+        <h4 class="text-center mb-4">Recommended Products</h4>
+        <div class="row row-cols-1 row-cols-md-4 g-4">
+            {% for recommended in recommended_products %}
             <div class="col">
-                <div class="card">
-                    <img src="{{ accessory.image.url }}" class="card-img-top" alt="{{ accessory.name }}">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ accessory.name }}</h5>
-                        <p class="card-text">${{ accessory.price|floatformat:2 }}</p>
-                        <button class="btn btn-primary add-to-cart-btn" 
-                                onclick="addAccessoryToCart('{{ accessory.id }}')">
-                            Add to Cart
-                        </button>
+                <div class="card h-100 shadow-sm">
+                    <img src="{{ recommended.image.url }}" class="card-img-top" alt="{{ recommended.name }}">
+                    <div class="card-body text-center">
+                        <h6 class="card-title fw-bold">{{ recommended.name }}</h6>
+                        <p class="text-success fw-semibold">${{ recommended.price|floatformat:2 }}</p>
+                        <a href="{% url 'product_details' recommended.id %}" class="btn btn-sm btn-outline-primary">
+                            Details
+                        </a>
                     </div>
                 </div>
             </div>
             {% empty %}
-            <p class="text-muted text-center">No accessories recommended at the moment.</p>
+            <div class="col text-center">
+                <p class="text-muted">No recommended products available at the moment.</p>
+            </div>
             {% endfor %}
         </div>
     </div>
@@ -285,10 +284,15 @@
     }
 
     // Add accessory to cart
-    function addAccessoryToCart(accessoryId) {
-        alert("Accessory added to cart!");
-        // Logic to add accessory to cart can go here
+    function addAccessoryToCart(productId, sizeId) {
+    if (!sizeId) {
+        alert("This accessory is out of stock or has no size selected.");
+        return;
     }
+
+    // Redirect to the proper Django route
+    window.location.href = `/add_to_cart/${productId}/${sizeId}/`;
+}
 </script>
 
 <style>

@@ -7,48 +7,68 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
                     <h2 class="mb-0">User Complaints Management</h2>
-                    <a href="{% url 'employee_dashboard' %}" class="btn btn-outline-light">
+                    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light">
                         <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
                     </a>
                 </div>
-                
+
                 <div class="card-body">
-                    {% if user_complaints %}
+                    {% if complaints %}
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table class="table table-striped table-hover align-middle">
                                 <thead class="table-light">
                                     <tr>
                                         <th>ID</th>
                                         <th>User</th>
-                                        <th>Complaint Details</th>
-                                        <th>Admin Response</th>
+                                        <th>Complaint</th>
+                                        <th>Status</th>
+                                        <th>Response</th>
+                                        <th>Resolved At</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for complaint in user_complaints %}
+                                    {% for complaint in complaints %}
                                     <tr>
-                                        <td class="fw-bold">{{ complaint.id }}</td>
+                                        <td class="fw-bold">#{{ complaint.id }}</td>
+                                        <td>{{ complaint.user.email }}</td>
+                                        <td style="max-width: 250px;">{{ complaint.message }}</td>
                                         <td>
-                                            <span class="text-muted">{{ complaint.user.username }}</span>
+                                            {% if complaint.status == 0 %}
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                            {% elif complaint.status == 1 %}
+                                                <span class="badge bg-success">Resolved</span>
+                                            {% elif complaint.status == 2 %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="max-width: 250px;">
+                                            {{ complaint.admin_response|default:"No response yet" }}
                                         </td>
                                         <td>
-                                            <div class="text-wrap" style="max-width: 250px;">
-                                                {{ complaint.complaint_text }}
-                                            </div>
+                                            {% if complaint.resolved_at %}
+                                                {{ complaint.resolved_at|date:"Y-m-d H:i" }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
                                         </td>
                                         <td>
-                                            <div class="text-wrap" style="max-width: 250px;">
-                                                {{ complaint.admin_response|default:"No response yet" }}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <button class="btn btn-sm btn-outline-primary" 
-                                                        data-bs-toggle="modal" 
+                                            <div class="btn-group">
+                                                {% if complaint.status == 0 %}
+                                                <button class="btn btn-sm btn-outline-primary"
+                                                        data-bs-toggle="modal"
                                                         data-bs-target="#replyModal{{ complaint.id }}">
                                                     <i class="bi bi-reply me-1"></i>Reply
                                                 </button>
+
+                                                <a href="{% url 'resolve_complaints' complaint.id %}"
+                                                   class="btn btn-sm btn-outline-success"
+                                                   onclick="return confirm('Mark complaint #{{ complaint.id }} as resolved?');">
+                                                    <i class="bi bi-check-circle me-1"></i>Mark Resolved
+                                                </a>
+                                                {% else %}
+                                                <span class="text-muted">—</span>
+                                                {% endif %}
                                             </div>
                                         </td>
                                     </tr>
@@ -59,7 +79,7 @@
                                             <div class="modal-content">
                                                 <div class="modal-header bg-secondary text-white">
                                                     <h5 class="modal-title">
-                                                        <i class="bi bi-chat-text me-2"></i>Reply to Complaint
+                                                        <i class="bi bi-chat-left-text me-2"></i>Reply to Complaint #{{ complaint.id }}
                                                     </h5>
                                                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                 </div>
@@ -70,13 +90,12 @@
                                                             <label for="responseText{{ complaint.id }}" class="form-label">
                                                                 Your Response
                                                             </label>
-                                                            <textarea 
-                                                                name="response" 
-                                                                id="responseText{{ complaint.id }}" 
-                                                                class="form-control" 
-                                                                rows="4" 
-                                                                placeholder="Type your response here..."
-                                                                required></textarea>
+                                                            <textarea name="response" 
+                                                                      id="responseText{{ complaint.id }}" 
+                                                                      class="form-control" 
+                                                                      rows="4" 
+                                                                      placeholder="Type your response here..." 
+                                                                      required></textarea>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
@@ -97,8 +116,7 @@
                         </div>
                     {% else %}
                         <div class="alert alert-info text-center" role="alert">
-                            <i class="bi bi-info-circle me-2"></i>
-                            No user complaints have been recorded yet.
+                            <i class="bi bi-info-circle me-2"></i>No user complaints found in the last 30 days.
                         </div>
                     {% endif %}
                 </div>

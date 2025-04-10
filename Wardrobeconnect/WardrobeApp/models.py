@@ -183,31 +183,76 @@ class Wishlist(models.Model):
 
 # BOOKING MODEL
 from django.core.exceptions import ObjectDoesNotExist
+from datetime import timedelta
+from django.utils.timezone import now
 
+# Helper function for the default rental end date (7 days after booking)
 def default_rental_end_date():
     return now() + timedelta(days=7)
 
 class Booking(models.Model):
-    
-    customer = models.ForeignKey(Login, on_delete=models.CASCADE)
-    product_size = models.ForeignKey(ProductSize, on_delete=models.CASCADE, null=True, blank=True)
-    assigned_employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    customer = models.ForeignKey('Login', on_delete=models.CASCADE)
+    product_size = models.ForeignKey('ProductSize', on_delete=models.CASCADE, null=True, blank=True)
+    assigned_employee = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Status choices for booking
     STATUS_CHOICES = [
         (1, "Pending"),
         (2, "Confirmed"),
-        (3, "Completed"),
-        (4, "Cancelled"),
+        (3, "Completed"),  # Booking completed (and can be refunded)
+        (4, "Cancelled"),   # Booking cancelled (refund rejected)
     ]
 
+    # Tracking choices for booking
+    TRACKING_CHOICES = [
+        ("placed", "Placed"),
+        ("processing", "Processing Started"),
+        ("packed", "Packed"),
+        ("awaiting_pickup", "Awaiting Pickup"),
+        ("shipped", "Shipped"),
+        ("delivered", "Delivered"),
+        ("return_scheduled", "Return Pickup Scheduled"),
+        ("returned", "Returned"),
+        ("refunded", "Refunded"),  # Track the refund status
+    ]
+
+        # Refund status choices
+    REFUND_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('processed', 'Processed'),
+    ]
+    refund_status = models.CharField(max_length=10, choices=REFUND_CHOICES, default='pending')
+
+    # Booking status and tracking status fields
     status = models.PositiveSmallIntegerField(choices=STATUS_CHOICES, default=1)
-    is_active = models.BooleanField(default=True)  # Tracks active rentals
-    booked_at = models.DateTimeField(default=now)
-    return_by = models.DateTimeField(default=default_rental_end_date)
-    security_deposit = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) 
-    booking_name = models.CharField(max_length=255, blank=True)
-    booking_address = models.TextField(default="Unknown Address")
+    tracking_status = models.CharField(max_length=30, choices=TRACKING_CHOICES, default="placed")
+
+    # Booking details
+    is_active = models.BooleanField(default=True)  # Indicates whether the booking is active or not
+    booked_at = models.DateTimeField(default=now)  # Booking creation timestamp
+    return_by = models.DateTimeField(default=default_rental_end_date)  # Rental return deadline
+    security_deposit = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Security deposit amount
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Total rental price
+
+    # Customer information for the booking
+    booking_name = models.CharField(max_length=255, blank=True, null=True)
+    booking_address = models.TextField(null=True, blank=True)
     booking_phone = models.CharField(max_length=15, blank=True)
+
+    # Employee who updated the tracking status
+    tracking_updated_by = models.ForeignKey(
+        'Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tracking_updates"
+    )
+
+    # Refund-related fields
+    late_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Late fee, if any
+    inspection_note = models.TextField(null=True, blank=True)  # Notes from employee during inspection
 
     def save(self, *args, **kwargs):
         """Ensure proper defaults for return_by and product_size before saving."""
@@ -219,23 +264,57 @@ class Booking(models.Model):
                 self.product_size = ProductSize.objects.first()
             except ObjectDoesNotExist:
                 print("Warning: No ProductSize exists. Booking saved without a product size.")
-
+        
         super().save(*args, **kwargs)
 
     def complete_booking(self):
         """Mark booking as completed."""
-        self.is_active = False  
-        self.status = 1  # Status: Completed
+        self.is_active = False  # Booking is no longer active
+        self.status = 3  # Status: Completed
         self.save()
+
+    def process_refund(self, refund_status, late_fee=None, inspection_note=None):
+        """Process the refund and update the booking status and tracking."""
+        if refund_status == "confirmed":
+            self.status = 3  # Set status to Completed (or Refunded)
+            self.tracking_status = "refunded"  # Mark as refunded
+        elif refund_status == "rejected":
+            self.status = 4  # Set status to Cancelled
+        else:
+            raise ValueError("Invalid refund status.")  # Handle invalid status
+
+        # Update late fee if provided
+        if late_fee is not None:
+            try:
+                self.late_fee = float(late_fee)
+            except ValueError:
+                raise ValueError("Invalid late fee value.")  # Handle invalid late fee input
+
+        # Save inspection notes if provided
+        if inspection_note:
+            self.inspection_note = inspection_note
+
+        # Save all changes
+        self.save()
+
+    def __str__(self):
+        return f"Booking #{self.id} - {self.customer}"
+
 
 # RENTED MODE;
 class Rental(models.Model):
+    STATUS_CHOICES = [
+        (1, "Rented"),
+        (2, "Returned"),
+        (3, "Overdue"),
+    ]
     booking = models.OneToOneField(Booking, on_delete=models.CASCADE, null=True, blank=True)
     customer = models.ForeignKey(Login, on_delete=models.CASCADE)
     product_size = models.ForeignKey(ProductSize, on_delete=models.CASCADE, null=True, blank=True)
     rented_at = models.DateTimeField(auto_now_add=True)
     return_by = models.DateTimeField(default=default_rental_end_date)
     is_active = models.BooleanField(default=True)
+    status = models.PositiveSmallIntegerField(choices=STATUS_CHOICES, default=1)
 
     def mark_returned(self):
         self.is_active = False
@@ -248,11 +327,18 @@ class Rental(models.Model):
 
 # RETURN MODEL
 class Return(models.Model):
+    CONDITION_CHOICES = [
+        ("Good", "Good"),
+        ("Damaged", "Damaged"),
+        ("Needs Cleaning", "Needs Cleaning"),
+    ]
     booking = models.OneToOneField(Booking, on_delete=models.CASCADE)
     returned_at = models.DateTimeField(auto_now_add=True)
-    condition = models.CharField(max_length=255, default="Good")
+    condition = models.CharField(max_length=255, choices=CONDITION_CHOICES, default="Good")
     handled_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
     late_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    refund_status = models.CharField(max_length=20, choices=[("pending", "Pending"), ("confirmed", "Confirmed"), ("rejected", "Rejected")], default="pending")
+    employee_note = models.TextField(blank=True, null=True)
     
     def save(self, *args, **kwargs):
         if self.booking.return_by and self.returned_at > self.booking.return_by:
@@ -276,12 +362,20 @@ class Payment(models.Model):
             self.security_deposit_refunded = True
             self.save()
     
+    def process_refund(self, admin_approval=False):
+        """Manually process security deposit refunds."""
+        if admin_approval:
+            self.security_deposit_refunded = True
+            self.amount -= self.booking.return_set.first().late_fee if self.booking.return_set.exists() else 0
+            self.save()
+    
     def __str__(self):
         return f"Payment {self.transaction_id} - {self.get_status_display()}"
     
 # FEEDBACK MODEL
 class Feedback(models.Model):
     user = models.ForeignKey(Login, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)
     message = models.TextField()
     rating = models.IntegerField(choices=[(i, f"{i} Star") for i in range(1, 6)], default=5)  # Rating field added
     submitted_at = models.DateTimeField(auto_now_add=True)
@@ -299,6 +393,7 @@ class Complaint(models.Model):
     status = models.IntegerField(choices=STATUS_CHOICES, default=0)
     submitted_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
+    admin_response = models.TextField(null=True, blank=True) 
 
     def __str__(self):
         return f"Complaint by {self.user.email} - {self.get_status_display()}"
@@ -335,6 +430,10 @@ class ProductRecommendation(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="recommended_for")
     recommended_product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="recommended_products")
     recommendation_type = models.CharField(max_length=20, choices=RECOMMENDATION_TYPE_CHOICES, default="accessory")
+
+    class Meta:
+        unique_together = ('product', 'recommended_product', 'recommendation_type')
+
     
     def __str__(self):
         return f"{self.recommended_product.name} ({self.get_recommendation_type_display()}) recommended for {self.product.name}"

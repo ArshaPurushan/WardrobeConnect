@@ -40,6 +40,7 @@ urlpatterns = [
     path("admin_manage-inventory/", views.admin_manage_inventory, name="admin_manage_inventory"),
     path("admin_manage-inventory/approve/<int:product_id>/", views.approve_product, name="approve_product"),
     path("admin_manage-inventory/reject/<int:product_id>/", views.reject_product, name="reject_product"),
+    path('delete-product/<int:product_id>/', views.delete_product, name='delete_product'),
     #path("admin_manage-inventory/edit/<int:product_id>/", views.edit_product, name="edit_product"),
     #path("admin_manage-inventory/delete/<int:product_id>/", views.delete_product, name="delete_product"),
 
@@ -74,6 +75,8 @@ urlpatterns = [
 
     path("invoice/<int:booking_id>/", views.invoice, name="invoice"),
     path("rental-history/", views.rental_history, name="rental_history"),
+    path('cancel-booking/<int:booking_id>/', views.cancel_booking, name='cancel_booking'),
+    
 
     
 
@@ -88,9 +91,22 @@ urlpatterns = [
     path("admin_payment/", views.admin_payment, name="admin_payment"),  # ✅ Added admin_payment
 
     path("employee_bookings/", views.employee_bookings, name="employee_bookings"),
+    path('employee_update_booking/<int:booking_id>/', views.employee_update_booking, name='employee_update_booking'),
+   
+
+    path("complaint/", views.complaint, name="complaint"),
+    path("product/<int:product_id>/feedback/", views.submit_feedback, name="submit_feedback"),
 
 
-    path("complaints/", views.complaints, name="complaints"),
+    # Refund Processing
+    #path('employee_confirm_refund/<int:booking_id>/', views.confirm_refund, name='employee_confirm_refund'),
+    path('employee_confirm_refund/<int:id>/', views.confirm_refund, name='employee_confirm_refund'),
+
+    path("admin_process_refund/<int:payment_id>/", views.process_refund, name="admin_process_refund"),
+    #path('process_refund/<int:payment_id>/', views.process_refund, name='process_refund'),
+
+    # Booking Management
+    path("employee/update-booking/<int:booking_id>/", views.update_booking_status, name="update_booking"),
 
 
      #   Review
@@ -104,6 +120,8 @@ urlpatterns = [
     #   COMPLAINT MANAGEMENT (employee)
     path("employee_complaints/", views.employee_complaints, name="employee_complaints"),
     path("resolve_complaints/<int:complaint_id>/", views.resolve_complaints, name="resolve_complaints"),
+    path('employee_complaint/<int:complaint_id>/', views.employee_view_complaint, name='employee_view_complaint'),
+
 
 
 
@@ -120,13 +138,20 @@ urlpatterns = [
 
     #   PROFILE MANAGEMENT
     path('profile_management/', views.profile_management, name='profile_management'),
-    path('change_password/', views.change_password, name='change_password'),
+    #path('change_password/', views.change_password, name='change_password'),
 
     #   RENTAL HISTROY MANAGEMENT
+    #path("rental-history/", views.customer_rental_history, name="rental_history"),
     path('rental_history/', views.rental_history, name='rental_history'),
+    path('my_bookings/', views.my_bookings, name='my_bookings'),
 
     #   CHATBOT
     path("chatbot/", views.chatbot_view, name="chatbot"),
+    path('chatbot/queries/', views.get_previous_queries, name='chatbot_queries'),
+
+    path("add_recommendations/<int:product_id>/", views.add_recommendations, name="add_recommendations"),
+    path("get_recommendations/<int:product_id>/", views.get_recommendations, name="get_recommendations"),
+
 
     #   OTHERS
     path('sustainability-impact/', views.sustainability_impact, name='sustainability_impact'),

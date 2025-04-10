@@ -1,15 +1,14 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container-fluid px-4">
-    <!-- Toast Container -->
+
+    <!-- Toast Notification -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
         {% if messages %}
             {% for message in messages %}
-                <div class="toast align-items-center text-bg-{{ message.tags }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast text-bg-{{ message.tags }} border-0 align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
                     <div class="d-flex">
-                        <div class="toast-body">
-                            {{ message }}
-                        </div>
+                        <div class="toast-body">{{ message }}</div>
                         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                     </div>
                 </div>
@@ -17,6 +16,7 @@
         {% endif %}
     </div>
 
+    <!-- Header -->
     <div class="row align-items-center mb-4">
         <div class="col">
             <h2 class="display-6">Employee Inventory Management</h2>
@@ -31,102 +31,130 @@
         </div>
     </div>
 
+    <!-- Tabs for filtering -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link {% if filter_by != 'my_products' %}active{% endif %}" href="?filter_by=all">All Products</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filter_by == 'my_products' %}active{% endif %}" href="?filter_by=my_products">My Products</a>
+        </li>
+    </ul>
+
+    <!-- Product Table -->
     <div class="card shadow-sm">
         <div class="card-header bg-light">
             <h3 class="card-title mb-0">Product List</h3>
         </div>
         <div class="card-body p-0">
             {% if products %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover mb-0">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Image</th>
-                                <th>Name</th>
-                                <th>Category</th>
-                                <th>Price</th>
-                                <th>Stock</th>
-                                <th>Gender</th>
-                                <th>Sizes</th>
-                                <th>Availability</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for product in products %}
-                            <tr>
-                                <td>
-                                    {% if product.image %}
-                                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-thumbnail" style="max-width: 80px; max-height: 80px; object-fit: cover;">
-                                    {% else %}
-                                        <span class="badge bg-secondary">No Image</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ product.name }}</td>
-                                <td>{{ product.get_category_display }}</td>
-                                <td>${{ product.price|floatformat:2 }}</td>
-                                <td>
-                                    <span class="badge {% if product.total_stock > 10 %}bg-success{% elif product.total_stock > 0 %}bg-warning{% else %}bg-danger{% endif %}">
-                                        {{ product.total_stock }}
-                                    </span>
-                                </td>
-                                <td>{{ product.get_gender_display }}</td>
-                                <td>
-                                    {% if product.available_sizes %}
-                                        {{ product.available_sizes|join:", " }}
-                                    {% else %}
-                                        <span class="text-muted">No sizes available</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <form method="POST" action="{% url 'update_availability' product.id %}">
-                                        {% csrf_token %}
-                                        <select name="availability" class="form-select form-select-sm" onchange="this.form.submit()">
-                                            {% for choice_key, choice_value in product.AVAILABILITY_CHOICES %}
-                                                <option value="{{ choice_key }}" {% if product.availability == choice_key %}selected{% endif %}>
-                                                    {{ choice_value }}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                    </form>
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Image</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Gender</th>
+                            <th>Sizes</th>
+                            <th>Availability</th>
+                            <th>Verified</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products %}
+                        <tr>
+                            <td>
+                                {% if product.image %}
+                                    <img src="{{ product.image.url }}" class="img-thumbnail" style="max-width: 80px;">
+                                {% else %}
+                                    <span class="badge bg-secondary">No Image</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ product.name }}</td>
+                            <td>{{ product.get_category_display }}</td>
+                            <td>${{ product.price|floatformat:2 }}</td>
+                            <td>
+                                <span class="badge {% if product.total_stock > 10 %}bg-success{% elif product.total_stock > 0 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ product.total_stock }}
+                                </span>
+                            </td>
+                            <td>{{ product.get_gender_display }}</td>
+                            <td>
+                                {% if product.available_sizes %}
+                                    {{ product.available_sizes|join:", " }}
+                                {% else %}
+                                    <span class="text-muted">No sizes</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="{% url 'update_availability' product.id %}">
+                                    {% csrf_token %}
+                                    <select name="availability" class="form-select form-select-sm" onchange="this.form.submit()">
+                                        {% for choice_key, choice_value in product.AVAILABILITY_CHOICES %}
+                                            <option value="{{ choice_key }}" {% if product.availability == choice_key %}selected{% endif %}>
+                                                {{ choice_value }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </form>
+                            </td>
+                            <td>
+                                {% if product.is_verified == 1 %}
+                                    <span class="badge badge-success">Verified</span>
+                                {% else %}
+                                    <span class="badge badge-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {% if product.added_by.id == employee.id %}
                                         <a href="{% url 'employee_edit_product' product.id %}" class="btn btn-warning">
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
-                                        <form method="POST" action="{% url 'delete_product' product.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this product?');">
+                                        <form method="POST" action="{% url 'delete_product' product.id %}" class="d-inline" onsubmit="return confirm('Delete this product?');">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-danger">
                                                 <i class="bi bi-trash"></i> Delete
                                             </button>
                                         </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                    {% else %}
+                                        <button class="btn btn-secondary" disabled title="You can only edit your own products.">
+                                            <i class="bi bi-lock"></i>
+                                        </button>
+                                    {% endif %}
+
+                                    {% if request.session.user_type == "1" %}
+                                        <!-- Optional Admin-only Recommendation Button -->
+                                        <a href="{% url 'add_recommendation' product.id %}" class="btn btn-info">
+                                            <i class="bi bi-stars"></i> Recommend
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
-                <div class="text-center p-4">
-                    <p class="text-muted mb-0">
-                        <i class="bi bi-box"></i> No products available.
-                    </p>
-                </div>
+            <div class="text-center p-4">
+                <p class="text-muted mb-0"><i class="bi bi-box"></i> No products available.</p>
+            </div>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- JavaScript to show toasts -->
+<!-- Toast JS -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var toastElList = [].slice.call(document.querySelectorAll('.toast'))
-        var toastList = toastElList.map(function(toastEl) {
-            return new bootstrap.Toast(toastEl, {
-                delay: 5000 // 5 seconds
-            }).show();
+        var toasts = [].slice.call(document.querySelectorAll('.toast'));
+        toasts.map(function(toastEl) {
+            return new bootstrap.Toast(toastEl, { delay: 5000 }).show();
         });
     });
 </script>

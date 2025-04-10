@@ -7,9 +7,9 @@
         <h4 class="mb-3">📌 Invoice Details</h4>
         <p><strong>Invoice ID:</strong> #{{ booking.id }}</p>
         <p><strong>Date:</strong> {{ booking.booked_at|date:"Y-m-d H:i:s" }}</p>
-        <p><strong>Customer:</strong> {{ booking.customer.get_full_name }}</p>
-        <p><strong>Contact:</strong> {{ booking.customer.email }}</p>
-        <p><strong>Delivery Address:</strong> {{ booking.contact_details }}</p>
+        <p><strong>Customer:</strong> {{ booking.booking_name }}</p>
+        <p><strong>Contact:</strong> {{ booking.booking_phone }}</p>
+        <p><strong>Delivery Address:</strong> {{ booking.booking_address }}</p>
     </div>
 
     <div class="card shadow p-4 mt-4">

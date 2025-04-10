@@ -1,36 +1,187 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Chatbot Assistance</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f2f4f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 500px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .chat-box {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        .bot-response, .user-query {
+            margin-bottom: 12px;
+        }
+
+        .bot-response {
+            color: #444;
+            background: #e6f3ff;
+            padding: 10px;
+            border-radius: 10px;
+            width: fit-content;
+            max-width: 90%;
+        }
+
+        .user-query {
+            text-align: right;
+            color: white;
+            background: #007bff;
+            padding: 10px;
+            border-radius: 10px;
+            width: fit-content;
+            margin-left: auto;
+            max-width: 90%;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .suggestions {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .suggestions span {
+            background: #eaeaea;
+            padding: 6px 10px;
+            margin: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>🤖 Wardrobe Assistant</h2>
+        <div class="chat-box" id="chat-box">
+            <!-- Messages appear here -->
+        </div>
+
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="Ask me something..." autocomplete="off" onfocus="loadSuggestions()" />
+            <button onclick="sendMessage()">Ask</button>
+        </div>
+
+        <div class="suggestions" id="suggestions"></div>
+    </div>
+
     <script>
-        function sendQuery() {
-            let user_query = document.getElementById("user_query").value;
-            fetch("", {
+        function sendMessage() {
+            const input = document.getElementById("user-input");
+            const message = input.value.trim();
+            if (!message) return;
+
+            appendMessage(message, "user-query");
+            input.value = "";
+            document.getElementById("suggestions").innerHTML = "";
+
+            fetch("/chatbot/", {
                 method: "POST",
                 headers: {
-                    "X-CSRFToken": "{{ csrf_token }}",
-                    "Content-Type": "application/x-www-form-urlencoded"
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
                 },
-                body: "user_query=" + encodeURIComponent(user_query)
+                body: JSON.stringify({ message })
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById("response").innerHTML = "🤖 " + data.response;
-                if (data.recommendations.length > 0) {
-                    document.getElementById("recommendations").innerHTML = 
-                        "🔹 Recommended: " + data.recommendations.join(", ");
-                } else {
-                    document.getElementById("recommendations").innerHTML = "";
+                appendMessage(data.response, "bot-response");
+
+                if (data.recommendations && data.recommendations.length > 0) {
+                    appendMessage("🔹 Recommended: " + data.recommendations.join(", "), "bot-response");
                 }
+
+                const chatBox = document.getElementById("chat-box");
+                chatBox.scrollTop = chatBox.scrollHeight;
             });
         }
+
+        function appendMessage(text, className) {
+            const chatBox = document.getElementById("chat-box");
+            const messageDiv = document.createElement("div");
+            messageDiv.className = className;
+            messageDiv.innerText = text;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function loadSuggestions() {
+            fetch("/chatbot/queries/")
+                .then(res => res.json())
+                .then(data => {
+                    const suggestionBox = document.getElementById("suggestions");
+                    suggestionBox.innerHTML = "Suggestions: ";
+                    data.queries.forEach(query => {
+                        const span = document.createElement("span");
+                        span.innerText = query;
+                        span.onclick = () => {
+                            document.getElementById("user-input").value = query;
+                            sendMessage();
+                        };
+                        suggestionBox.appendChild(span);
+                    });
+                });
+        }
+
+        function getCSRFToken() {
+            const name = 'csrftoken';
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name + '=')) {
+                    return decodeURIComponent(cookie.substring(name.length + 1));
+                }
+            }
+            return '';
+        }
     </script>
-</head>
-<body>
-    <h2>Chatbot Assistance</h2>
-    <input type="text" id="user_query" placeholder="Ask me something..." />
-    <button onclick="sendQuery()">Ask</button>
-    <p id="response"></p>
-    <p id="recommendations"></p>
 </body>
 </html>

@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .refund-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: #ffffff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+    }
+
+    .refund-container h2 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+    }
+
+    .refund-container p {
+        font-size: 16px;
+        margin: 10px 0;
+    }
+
+    .refund-status {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: bold;
+        display: inline-block;
+    }
+
+    .status-confirmed {
+        background-color: #e8f5e9;
+        color: #27ae60;
+    }
+
+    .status-pending {
+        background-color: #fff3cd;
+        color: #f39c12;
+    }
+
+    .btn-refund {
+        background-color: #27ae60;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+
+    .btn-refund:hover {
+        background-color: #219150;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-top: 20px;
+        text-decoration: none;
+        color: #3498db;
+        font-weight: 500;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    .refund-amount {
+        margin-top: 20px;
+        font-size: 18px;
+        font-weight: bold;
+        color: #27ae60;
+    }
+</style>
+
+<div class="refund-container">
+    <h2>💸 Process Refund</h2>
+
+    <p><strong>Booking ID:</strong> {{ booking.id }}</p>
+    <p><strong>Customer:</strong> {{ booking.customer.user.name }}</p>
+    <p><strong>Product:</strong> {{ booking.product_size.product.name }}</p>
+    <p><strong>Security Deposit:</strong> ₹{{ booking.security_deposit }}</p>
+    <p><strong>Employee Confirmation:</strong> 
+        {% if returned_item.refund_status == "confirmed" %}
+            <span class="refund-status status-confirmed">✅ Confirmed</span>
+        {% else %}
+            <span class="refund-status status-pending">⏳ Not Confirmed</span>
+        {% endif %}
+    </p>
+
+    {% if returned_item.refund_status == "confirmed" %}
+        <p class="refund-amount"><strong>Refund Amount:</strong> ₹{{ refund_amount }}</p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn-refund">Approve Refund</button>
+        </form>
+    {% else %}
+        <p style="margin-top: 20px; font-style: italic; color: #888;">
+            Refund cannot be processed until employee confirms the return.
+        </p>
+    {% endif %}
+
+    <a href="{% url 'admin_payment' %}" class="back-link">← Back to Payments</a>
+</div>
+{% endblock %}

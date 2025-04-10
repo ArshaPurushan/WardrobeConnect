@@ -138,7 +138,7 @@
     <nav class="navbar navbar-expand-lg navbar-light sticky-top">
         <div class="container-fluid px-4">
             <a class="navbar-brand" href="{% url 'customer_dashboard' %}">
-                <img src="{% static 'images/logo.png' %}" alt="WardrobeConnect Logo" height="50">
+                <img src="{% static 'img/logo2.jpg' %}" alt="WardrobeConnect Logo" height="50">
             </a>
             
             <!-- Responsive Search and Icons Container -->
@@ -156,10 +156,10 @@
                     </a>
 
                     <!-- Wishlist -->
-                    <a href="{% url 'wishlist' %}" class="nav-icon position-relative" title="Wishlist">
+            <!--       <a href="{% url 'wishlist' %}" class="nav-icon position-relative" title="Wishlist">
                         <i class="fas fa-heart"></i>
                         <span class="icon-badge">{{ wishlist_count|default:0 }}</span>
-                    </a>
+                    </a>-->
 
                     <!-- Profile Dropdown -->
                     <div class="dropdown">
@@ -182,10 +182,10 @@
                     </div>
 
                     <!-- Cart -->
-                    <a href="{% url 'cart' %}" class="nav-icon position-relative ms-3" title="Cart">
+        <!--           <a href="{% url 'cart' %}" class="nav-icon position-relative ms-3" title="Cart">
                         <i class="fas fa-shopping-cart"></i>
                         <span class="icon-badge">{{ cart_count|default:0 }}</span>
-                    </a>
+                    </a>--> 
                 </div>
             </div>
         </div>

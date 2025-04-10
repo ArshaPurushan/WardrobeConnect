@@ -13,12 +13,12 @@
         }
 
         .container {
-            width: 80%;
-            margin: 0 auto;
+            width: 85%;
+            margin: 30px auto;
             padding: 20px;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
@@ -34,8 +34,8 @@
             border-radius: 5px;
             cursor: pointer;
             text-decoration: none;
-            margin-bottom: 20px;
             display: inline-block;
+            margin-bottom: 20px;
         }
 
         .back-button:hover {
@@ -61,33 +61,70 @@
             background-color: #f2f2f2;
         }
 
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
         .status {
             font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
         }
 
         .active {
+            background-color: #e0f7e9;
             color: green;
         }
 
         .completed {
+            background-color: #e3e9ff;
             color: blue;
         }
 
         .canceled {
+            background-color: #ffe3e3;
             color: red;
         }
 
+        .tracking {
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            display: inline-block;
+            font-size: 0.9rem;
+        }
+
         .rental-item {
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
 
         .rental-item h3 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+            font-size: 1.3rem;
+            color: #333;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
         }
 
-        .rental-item p {
-            margin: 5px 0;
+        .cancel-button {
+            padding: 5px 10px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .cancel-button:hover {
+            background-color: darkred;
+        }
+
+        .tag {
+            background-color: #ccc;
+            color: #333;
+            font-size: 0.85rem;
+            padding: 3px 6px;
+            border-radius: 3px;
         }
     </style>
 </head>
@@ -98,6 +135,7 @@
 
     <h1>Your Rental History</h1>
 
+    <!-- Current Rentals -->
     <div class="rental-item">
         <h3>Current Rentals</h3>
         <table>
@@ -106,28 +144,46 @@
                     <th>Product</th>
                     <th>Booking Date</th>
                     <th>Return By</th>
-                    <th>Status</th>
+                    <th>Booking or Payment Status</th>
+                    <th>Tracking</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% for booking in bookings %}
                 <tr>
                     <td>{{ booking.product_size.product.name }} (Size: {{ booking.product_size.size }})</td>
-                    <td>{{ booking.booked_at }}</td>
-                    <td>{{ booking.return_by }}</td>
+                    <td>{{ booking.booked_at|date:"M d, Y H:i" }}</td>
+                    <td>{{ booking.return_by|date:"M d, Y" }}</td>
                     <td class="status {% if booking.status == 1 %}completed{% elif booking.status == 2 %}canceled{% else %}active{% endif %}">
                         {% if booking.status == 0 %}Active{% elif booking.status == 1 %}Completed{% else %}Canceled{% endif %}
+                    </td>
+                    <td>
+                        <span class="tracking">{{ booking.tracking_status|title }}</span>
+                    </td>
+                    <td>
+                        {% if booking.status == 1 and booking.tracking_status != "returned" %}
+                            <form action="{% url 'cancel_booking' booking.id %}" method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="cancel-button">
+                                    Cancel
+                                </button>
+                            </form>
+                        {% elif booking.tracking_status == "returned" %}
+                            <span class="status completed">Returned</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4">No current rentals.</td>
+                    <td colspan="6">No current rentals.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
+    <!-- Past Rentals -->
     <div class="rental-item">
         <h3>Past Rentals</h3>
         <table>
@@ -135,7 +191,7 @@
                 <tr>
                     <th>Product</th>
                     <th>Booking Date</th>
-                    <th>Return Date</th>
+                    <th>Returned At</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -143,9 +199,9 @@
                 {% for rental in completed_rentals %}
                 <tr>
                     <td>{{ rental.product_size.product.name }} (Size: {{ rental.product_size.size }})</td>
-                    <td>{{ rental.booked_at }}</td>
-                    <td>{{ rental.returned_at }}</td>
-                    <td class="status completed">Completed</td>
+                    <td>{{ rental.booking.booked_at|date:"M d, Y H:i" }}</td>
+                    <td>{{ rental.booking.return_by|date:"M d, Y" }}</td>
+                    <td><span class="status completed">Completed</span></td>
                 </tr>
                 {% empty %}
                 <tr>
