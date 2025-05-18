@@ -54,21 +54,20 @@
         <h2>Edit Profile</h2>
         <form method="POST">
             {% csrf_token %}
-            <label for="username">Username:</label>
-            <input type="text" id="user" name="username" value="{{ user.user }}" required>
-
-            <label for="username">Full name:</label>
-            <input type="text" id="fullname" name="fullname" value="{{ user.full_name }}" >
-
+            
+            <label for="full_name">Full Name:</label>
+            <input type="text" name="full_name" value="{{ user_profile.full_name }}" required>
+    
             <label for="email">Email:</label>
-            <input type="email" id="email" name="email" value="{{ user.email }}" required>
-
+            <input type="email" name="email" value="{{ user.email }}" required>
+    
             <label for="phone">Phone:</label>
-            <input type="text" id="phone" name="phone" value="{{ user.profile.phone }}" required>
-
+            <input type="text" name="phone" value="{{ user_profile.phone }}" required>
+    
             <button type="submit">Update Profile</button>
         </form>
-        <p><a href="{% url 'customer_dashboard' %}">Back to Dashboard</a></p>
+    
+        <a href="{% url 'profile_management' %}">Back to Profile</a>
     </div>
 
 </body>

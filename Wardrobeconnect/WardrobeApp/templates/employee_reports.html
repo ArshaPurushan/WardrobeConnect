@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h2>📊 My Reports</h2>
+
+    <!-- Report Submission Form -->
+    <form method="POST" class="form">
+        {% csrf_token %}
+        <div>
+            <label for="title">Report Title:</label>
+            <input type="text" name="title" id="title" required>
+        </div>
+        <div>
+            <label for="description">Description:</label>
+            <textarea name="description" id="description" required></textarea>
+        </div>
+        <button type="submit">Submit Report</button>
+    </form>
+
+    <h3>📋 Submitted Reports</h3>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Date Submitted</th>
+                <th>Status</th>
+                <th>Verified By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in reports %}
+            <tr>
+                <td>{{ report.title }}</td>
+                <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+                <td>
+                    {% if report.status == "Pending" %}
+                        <span style="color: orange;">🕒 Pending</span>
+                    {% elif report.status == "Verified" %}
+                        <span style="color: green;">✅ Verified</span>
+                    {% elif report.status == "Rejected" %}
+                        <span style="color: red;">❌ Rejected</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if report.verified_by %}
+                        {{ report.verified_by.name }}
+                    {% else %}
+                        Not Verified
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No reports submitted yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+</div>
+{% endblock %}

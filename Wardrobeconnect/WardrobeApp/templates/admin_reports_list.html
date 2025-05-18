@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">📋 Pending Reports</h2>
+
+    {% if pending_reports %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-dark">
+                    <tr class="text-center">
+                        <th>Employee</th>
+                        <th>Title</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in pending_reports %}
+                        <tr class="text-center">
+                            <td>{{ report.employee.name }}</td>
+                            <td>{{ report.title }}</td>
+                            <td>{{ report.created_at|date:"M d, Y H:i" }}</td>
+                            <td>
+                                <a href="{% url 'admin_report_detail' report.id %}" class="btn btn-info btn-sm me-1">👁 View</a>
+
+                            <!--    <form method="POST" action="{% url 'verify_or_reject_report' report.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="verify" class="btn btn-success btn-sm me-1">✔ Verify</button>
+                                </form>
+
+                                <form method="POST" action="{% url 'verify_or_reject_report' report.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">✖ Reject</button>
+                                </form>-->
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center" role="alert">
+            No pending reports at the moment.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

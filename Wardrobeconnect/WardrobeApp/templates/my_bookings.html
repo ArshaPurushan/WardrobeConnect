@@ -1,0 +1,21 @@
+{% for booking in bookings %}
+  <div class="card my-3">
+    <h5>Booking for {{ booking.product_size.product.name }} ({{ booking.product_size.size }})</h5>
+    <p>Customer: {{ booking.customer.email }}</p>
+    <p>Status: {{ booking.get_status_display }}</p>
+    <p>Return By: {{ booking.return_by }}</p>
+
+    {% for return_item in returns %}
+      {% if return_item.booking.id == booking.id %}
+        <hr>
+        <strong>Return Details:</strong>
+        <p>Returned At: {{ return_item.returned_at }}</p>
+        <p>Condition: {{ return_item.get_condition_display }}</p>
+        <p>Late Fee: ₹{{ return_item.late_fee }}</p>
+        <p>Handled By: {{ return_item.handled_by.user.email }}</p>
+        <p>Note: {{ return_item.employee_note }}</p>
+        <p>Refund Status: {{ return_item.refund_status }}</p>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endfor %}

@@ -1,138 +1,118 @@
+{% extends 'base.html' %}
 {% block content %}
-<style>
-    .fade-in {
-        animation: fadeIn 0.5s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .container {
-        max-width: 900px;
-        margin: auto;
-    }
-
-    .header-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .back-btn {
-        background: #007bff;
-        color: white;
-        padding: 8px 18px;
-        border-radius: 5px;
-        font-weight: bold;
-        text-decoration: none;
-        transition: 0.3s;
-    }
-
-    .back-btn:hover { background: #0056b3; }
-
-    .status-nav {
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-        margin: 20px 0;
-    }
-
-    .status-btn {
-        padding: 10px 18px;
-        border-radius: 5px;
-        font-weight: bold;
-        text-decoration: none;
-        color: white;
-        transition: 0.3s;
-    }
-
-    .pending { background: #f0ad4e; }
-    .approved { background: #28a745; }
-    .rejected { background: #dc3545; }
-
-    .status-btn:hover { opacity: 0.8; }
-
-    .table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    .table th, .table td {
-        padding: 12px;
-        border-bottom: 1px solid #ddd;
-        text-align: center;
-    }
-
-    .table th { background: #343a40; color: white; }
-    .table tr:hover { background: #f8f9fa; }
-
-    .btn-action {
-        padding: 6px 12px;
-        border-radius: 5px;
-        font-size: 14px;
-        transition: 0.3s;
-    }
-
-    .btn-action:hover { transform: scale(1.1); }
-</style>
-
-<div class="container mt-5 fade-in">
-    <div class="header-container">
-        <h2>Manage Users</h2>
-        <a href="{% url 'admin_dashboard' %}" class="back-btn">⬅ Back</a>
-    </div>
-
-    <div class="status-nav">
-        <a href="{% url 'manage_users' status='pending' %}" class="status-btn pending">⏳ Pending</a>
-        <a href="{% url 'manage_users' status='approved' %}" class="status-btn approved">✅ Approved</a>
-        <a href="{% url 'manage_users' status='rejected' %}" class="status-btn rejected">❌ Rejected</a>
-    </div>
-
-    {% if users %}
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr>
-                        <td>{{ user.full_name }}</td>
-                        <td>{{ user.user}}</td>
-                        <td>{{ user.email }}</td>
-                        <td>
-                            {% if status == "pending" %}
-                                <form action="{% url 'approve_user' user.id %}" method="POST" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-success btn-sm btn-action">✔ Approve</button>
-                                </form>
-                                <form action="{% url 'reject_user' user.id %}" method="POST" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-danger btn-sm btn-action">✖ Reject</button>
-                                </form>
-                            {% elif status == "approved" %}
-                                <span class="badge bg-success">✔ Approved</span>
-                            {% elif status == "rejected" %}
-                                <span class="badge bg-danger">✖ Rejected</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-section {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8 fade-in-section">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 md:mb-0">User Management</h2>
+            <a href="{% url 'admin_dashboard' %}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300 ease-in-out">
+                Back to Dashboard
+            </a>
         </div>
-    {% else %}
-        <p class="text-center text-muted">No users found.</p>
-    {% endif %}
-</div>
+
+        <!-- User Status Filters -->
+        <div class="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4 mb-8">
+            <a href="{% url 'manage_users_with_status' status='active' %}" class="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-300 ease-in-out flex items-center justify-center">
+                Active Users
+            </a>
+            <a href="{% url 'manage_users_with_status' status='reported' %}" class="px-6 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-300 ease-in-out flex items-center justify-center">
+                Reported Users
+            </a>
+            <a href="{% url 'manage_users_with_status' status='blocked' %}" class="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-300 ease-in-out flex items-center justify-center">
+                Blocked Users
+            </a>
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            {% if users %}
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Profile</th>
+                                <th class="px-4 py-3 text-left">Name</th>
+                                <th class="px-4 py-3 text-left">Email</th>
+                                <th class="px-4 py-3 text-left">Status</th>
+                                <th class="px-4 py-3 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr class="border-b hover:bg-gray-100 transition duration-200">
+                                <td class="px-4 py-3">
+                                    {% if user.profile_picture %}
+                                        <img src="{{ user.profile_picture.url }}" class="w-10 h-10 rounded-full">
+                                    {% else %}
+                                        <img src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full">
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3">{{ user.full_name }}</td>
+                                <td class="px-4 py-3">{{ user.user.email }}</td>
+                                <td class="px-4 py-3">
+                                    {% if user.status == 0 %}
+                                        <span class="px-3 py-1 bg-green-500 text-white rounded inline-flex items-center">Active</span>
+                                    {% elif user.status == 1 %}
+                                        <span class="px-3 py-1 bg-yellow-500 text-white rounded inline-flex items-center">Reported</span>
+                                    {% elif user.status == 2 %}
+                                        <span class="px-3 py-1 bg-red-500 text-white rounded inline-flex items-center">Blocked</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex justify-center space-x-2">
+                                        {% if user.status == 0 %}
+                                            <!-- Report Button -->
+                                            <form action="{% url 'report_user' user.id %}" method="POST">
+                                                {% csrf_token %}
+                                                <button type="submit" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition duration-300 ease-in-out">
+                                                    Report
+                                                </button>
+                                            </form>
+                                            <!-- Block Button -->
+                                            <form action="{% url 'block_user' user.id %}" method="POST">
+                                                {% csrf_token %}
+                                                <button type="submit" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition duration-300 ease-in-out">
+                                                    Block
+                                                </button>
+                                            </form>
+                                        {% elif user.status == 1 or user.status == 2 %}
+                                            <!-- Reactivate Button -->
+                                            <form action="{% url 'activate_user' user.id %}" method="POST">
+                                                {% csrf_token %}
+                                                <button type="submit" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition duration-300 ease-in-out">
+                                                    Reactivate
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-8 text-gray-500">
+                    <p class="text-xl">No users found</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
 {% endblock %}

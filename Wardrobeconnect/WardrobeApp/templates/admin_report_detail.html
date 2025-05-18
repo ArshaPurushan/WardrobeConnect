@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container mt-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4>{{ report.title }}</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Submitted By:</strong> {{ report.employee.name }}</p>
+            <p><strong>Submitted On:</strong> {{ report.created_at|date:"M d, Y H:i" }}</p>
+            <p><strong>Status:</strong> {{ report.status }}</p>
+
+            <hr>
+            <p><strong>Description:</strong></p>
+            <p>{{ report.description }}</p>
+
+            <hr>
+            <p><strong>Items Added Today:</strong> {{ report.items_added }}</p>
+            <p><strong>Bookings Made Today:</strong> {{ report.bookings_made }}</p>
+
+            
+            <hr>
+            <h5 class="mt-4">Rental Summary</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered mt-2">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Rental Count</th>
+                            <th>Total Security Deposit</th>
+                            <th>Total Late Fee</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in report_data %}
+                            <tr>
+                                <td>{{ product.product_size__product__name }}</td>
+                                <td>{{ product.rent_count }}</td>
+                                <td>{{ product.total_deposit }}</td>
+                                <td>{{ product.total_late_fee }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+
+
+            <div class="mt-4">
+                <a href="{% url 'admin_reports_list' %}" class="btn btn-secondary">⬅ Back to Reports</a>
+                <form method="POST" action="{% url 'verify_or_reject_report' report.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" name="action" value="verify" class="btn btn-success">✔ Verify</button>
+                </form>
+                <form method="POST" action="{% url 'verify_or_reject_report' report.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" name="action" value="reject" class="btn btn-danger">✖ Reject</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

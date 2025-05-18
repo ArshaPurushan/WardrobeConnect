@@ -1,137 +1,217 @@
-{% extends 'base.html' %}
-
-{% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">🛍 Checkout</h2>
-
-    {% if cart_items %}
-        <form action="{% if booking %}{% url 'payment_page' booking.id %}{% else %}#{% endif %}" method="POST">
-            {% csrf_token %}
-            
-            <!-- Order Summary -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">🛒 Order Summary</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Item Name</th>
-                                <th>Quantity</th>
-                                <th>Size</th>
-                                <th>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in cart_items %}
-                            <tr>
-                                <td>{{ item.product.name }}</td>
-                                <td>{{ item.quantity }}</td>
-                                <td>{{ item.product.size|default:"N/A" }}</td>
-                                <td>₹{{ item.total_price|floatformat:2 }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="3" class="text-end"><strong>Security Deposit:</strong></td>
-                                <td>₹{{ security_deposit|floatformat:2 }}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="3" class="text-end"><strong>Total Payable:</strong></td>
-                                <td>₹{{ total_with_deposit|floatformat:2 }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Delivery Address -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">🏠 Delivery Address</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Full Name</label>
-                        <input type="text" id="name" name="name" class="form-control" placeholder="Enter your full name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">Phone Number</label>
-                        <input type="tel" id="phone" name="phone" class="form-control" placeholder="Enter your phone number" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="address" class="form-label">Address</label>
-                        <textarea id="address" name="address" class="form-control" placeholder="Enter delivery address" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="landmark" class="form-label">Landmark (Optional)</label>
-                        <input type="text" id="landmark" name="landmark" class="form-control" placeholder="Enter a nearby landmark">
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="useSameDetails">
-                        <label class="form-check-label" for="useSameDetails">Use the same details</label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Confirm Your Details -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">✅ Confirm Your Details</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Name:</strong> <span id="confirmName">[Enter Name]</span></p>
-                    <p><strong>Phone:</strong> <span id="confirmPhone">[Enter Phone]</span></p>
-                    <p><strong>Address:</strong> <span id="confirmAddress">[Enter Address]</span></p>
-                    <p><strong>Landmark:</strong> <span id="confirmLandmark">[Enter Landmark]</span></p>
-                </div>
-            </div>
-
-            <!-- Proceed to Payment Button -->
-            <input type="hidden" name="security_deposit" value="{{ security_deposit }}">
-            <input type="hidden" name="total_amount" value="{{ total_with_deposit }}">
-            <button type="submit" class="btn btn-lg btn-success w-100">💳 Proceed to Payment</button>
-        </form>
-
-        <div class="mt-3 text-center">
-            <a href="{% url 'cart' %}" class="btn btn-outline-secondary">← Back to Cart</a>
-        </div>
-    {% else %}
-        <div class="alert alert-warning text-center">
-            <p>Your cart is empty. <a href="{% url 'home' %}" class="alert-link">Continue Shopping</a></p>
-        </div>
-    {% endif %}
-</div>
-
-<script>
-    document.getElementById("address").addEventListener("input", function() {
-        document.getElementById("confirmAddress").textContent = this.value || "[Enter Address]";
-    });
-    document.getElementById("name").addEventListener("input", function() {
-        document.getElementById("confirmName").textContent = this.value || "[Enter Name]";
-    });
-    document.getElementById("phone").addEventListener("input", function() {
-        document.getElementById("confirmPhone").textContent = this.value || "[Enter Phone]";
-    });
-    document.getElementById("landmark").addEventListener("input", function() {
-        document.getElementById("confirmLandmark").textContent = this.value || "[Enter Landmark]";
-    });
-
-    document.getElementById("useSameDetails").addEventListener("change", function() {
-        if (this.checked) {
-            document.getElementById("confirmName").textContent = document.getElementById("name").value;
-            document.getElementById("confirmPhone").textContent = document.getElementById("phone").value;
-            document.getElementById("confirmAddress").textContent = document.getElementById("address").value;
-            document.getElementById("confirmLandmark").textContent = document.getElementById("landmark").value;
-        } else {
-            document.getElementById("confirmName").textContent = "[Enter Name]";
-            document.getElementById("confirmPhone").textContent = "[Enter Phone]";
-            document.getElementById("confirmAddress").textContent = "[Enter Address]";
-            document.getElementById("confirmLandmark").textContent = "[Enter Landmark]";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chatbot Assistance</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f2f4f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
-    });
-</script>
 
-{% endblock %}
+        .chat-container {
+            width: 100%;
+            max-width: 500px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .chat-box {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            max-height: 350px;
+        }
+
+        .bot-response, .user-query {
+            margin-bottom: 12px;
+        }
+
+        .bot-response {
+            color: #444;
+            background: #e6f3ff;
+            padding: 10px;
+            border-radius: 10px;
+            width: fit-content;
+            max-width: 90%;
+        }
+
+        .user-query {
+            text-align: right;
+            color: white;
+            background: #007bff;
+            padding: 10px;
+            border-radius: 10px;
+            width: fit-content;
+            margin-left: auto;
+            max-width: 90%;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .suggestions {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #888;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .suggestions span {
+            background: #eaeaea;
+            padding: 6px 10px;
+            margin: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .suggestions span:hover {
+            background: #007bff;
+            color: white;
+        }
+
+        .user-query:focus {
+            outline: none;
+        }
+
+        #response-container {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>🤖 Wardrobe Assistant</h2>
+        <div class="chat-box" id="chat-box">
+            <!-- Messages will appear here -->
+        </div>
+
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="Ask me something..." autocomplete="off" onfocus="loadSuggestions()" />
+            <button onclick="sendMessage()">Ask</button>
+        </div>
+
+        <div class="suggestions" id="suggestions"></div>
+    </div>
+
+    <script>
+        const defaultResponse = "I'm here to help! Try asking about 'how to rent' or 'track order'.";
+        const responseElement = document.getElementById('chat-box');
+        const suggestionsElement = document.getElementById('suggestions');
+        const userInput = document.getElementById("user-input");
+
+        // Function to append messages
+        function appendMessage(text, className) {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = className;
+            messageDiv.innerText = text;
+            responseElement.appendChild(messageDiv);
+            responseElement.scrollTop = responseElement.scrollHeight;
+        }
+
+        // Function to send user input and get response
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            appendMessage(message, "user-query");
+            userInput.value = "";
+            suggestionsElement.innerHTML = "";
+
+            fetch("/chatbot/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({ message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage(data.response, "bot-response");
+
+                if (data.recommendations && data.recommendations.length > 0) {
+                    appendMessage("🔹 Recommended: " + data.recommendations.join(", "), "bot-response");
+                }
+                responseElement.scrollTop = responseElement.scrollHeight;
+            });
+        }
+
+        // Load suggestions based on user input focus
+        function loadSuggestions() {
+            fetch("/chatbot/queries/")
+                .then(res => res.json())
+                .then(data => {
+                    suggestionsElement.innerHTML = "Suggestions: ";
+                    data.queries.forEach(query => {
+                        const span = document.createElement("span");
+                        span.innerText = query;
+                        span.onclick = () => {
+                            userInput.value = query;
+                            sendMessage();
+                        };
+                        suggestionsElement.appendChild(span);
+                    });
+                });
+        }
+
+        // Get CSRF token
+        function getCSRFToken() {
+            const name = 'csrftoken';
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name + '=')) {
+                    return decodeURIComponent(cookie.substring(name.length + 1));
+                }
+            }
+            return '';
+        }
+
+        // Default response on input field focus
+        userInput.addEventListener('focus', () => {
+            appendMessage(defaultResponse, "bot-response");
+        });
+    </script>
+</body>
+</html>

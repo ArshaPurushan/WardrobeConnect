@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="verify-report">
+    <h1>Verify Report</h1>
+    <h3>Report Title: {{ report.title }}</h3>
+    <p>{{ report.description }}</p>
+    <p><strong>Items Added Today:</strong> {{ report.items_added }}</p>
+    <p><strong>Bookings Made Today:</strong> {{ report.bookings_made }}</p>
+
+    <form method="POST">
+        {% csrf_token %}
+        <label for="status">Status:</label>
+        <select name="status" id="status" required>
+            <option value="Verified">Verified</option>
+            <option value="Rejected">Rejected</option>
+        </select>
+        <button type="submit">Submit Verification</button>
+    </form>
+</div>
+{% endblock %}

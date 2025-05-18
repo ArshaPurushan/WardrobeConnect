@@ -11,7 +11,6 @@
         <div class="card shadow p-4">
             <h2 class="text-center mb-4">Add Employee</h2>
 
-            <!-- Display error messages if form validation fails -->
             {% if form.errors %}
                 <div class="alert alert-danger">
                     <strong>Errors:</strong>
@@ -32,11 +31,6 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Username:</label>
-                    {{ form.username }}
-                </div>
-
-                <div class="mb-3">
                     <label class="form-label">Email:</label>
                     {{ form.email }}
                 </div>
@@ -47,27 +41,20 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Contact Number:</label>
-                    {{ form.contact_number }}
-                </div>
-
-                <div class="mb-3">
                     <label class="form-label">Position:</label>
                     {{ form.position }}
                 </div>
 
-                <!-- Profile Image Upload Field -->
                 <div class="mb-3">
                     <label class="form-label">Profile Image:</label>
-                    <input type="file" class="form-control" name="image">
+                    {{ form.profile_picture }}
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Status:</label>
-                    {{ form.status }}
+                    {{ form.user.status }}
                 </div>
 
-                <!-- Buttons -->
                 <div class="d-flex justify-content-between">
                     <button type="submit" class="btn btn-primary">Add Employee</button>
                     <a href="{% url 'manage_employees' %}" class="btn btn-secondary">Cancel</a>

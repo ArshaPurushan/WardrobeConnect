@@ -1,0 +1,20 @@
+<form method="POST">
+    {% csrf_token %}
+    
+    <label for="tracking_status"><strong>Update Tracking Status:</strong></label>
+    <select name="tracking_status" id="tracking_status" class="form-select" required>
+      <option value="">-- Select Status --</option>
+      <option value="placed" {% if booking.tracking_status == "placed" %}selected{% endif %}>Placed</option>
+      <option value="processing" {% if booking.tracking_status == "processing" %}selected{% endif %}>Processing Started</option>
+      <option value="packed" {% if booking.tracking_status == "packed" %}selected{% endif %}>Packed</option>
+      <option value="awaiting_pickup" {% if booking.tracking_status == "awaiting_pickup" %}selected{% endif %}>Awaiting Pickup</option>
+      <option value="shipped" {% if booking.tracking_status == "shipped" %}selected{% endif %}>Shipped</option>
+      <option value="delivered" {% if booking.tracking_status == "delivered" %}selected{% endif %}>Delivered</option>
+      <option value="return_scheduled" {% if booking.tracking_status == "return_scheduled" %}selected{% endif %}>Return Pickup Scheduled</option>
+      <option value="returned" {% if booking.tracking_status == "returned" %}selected{% endif %}>Returned</option>
+    </select>
+  
+    <br>
+    <button type="submit" class="btn btn-primary">Update Status</button>
+  </form>
+  

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+            <h2 class="mb-0">Admin Dashboard - Customer Payments</h2>
+        </div>
+        <div class="card-body">
+            {% if payments %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Id</th>
+                                <th>Customer Name</th>
+                                <th>Phone</th>
+                                <th>Address</th>
+                                <th>Amount</th>
+                                <th>Product</th>
+                                <th>Added By</th>
+                                <th>Payment Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.booking_id }}</td>
+                                <td>{{ payment.booking.booking_name }}</td>
+                                <td>{{ payment.booking.booking_phone }}</td>
+                                <td>{{ payment.booking.booking_address }}</td>
+                                <td>₹{{ payment.amount|floatformat:2 }}</td>
+                                <td>{{ payment.booking.product_size.product.name }}</td>
+                                <td>{{ payment.booking.product_size.product.added_by }}</td>
+                                <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    {% if payment.booking.refund_status == "processed" %}
+                                        <button class="btn btn-outline-success btn-sm" disabled>
+                                            ✅ Refund Processed
+                                        </button>
+                                    {% elif payment.booking.refund_status == "approved" %}
+                                        <a href="{% url 'admin_process_refund' payment.id %}" class="btn btn-success btn-sm">
+                                            💸 Confirm Refund
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-sm" disabled>
+                                            ⏳ Waiting for Approval
+                                        </button>
+                                    {% endif %}
+
+
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Display Total Amount and Refund Amount -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between">
+                        <h5><strong>Total Payment Amount:</strong> ₹{{ total_amount|floatformat:2 }}</h5>
+                        <h5><strong>Total Amount to Refund:</strong> ₹{{ total_refund|floatformat:2 }}</h5>
+                    </div>
+                </div>
+                
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="bi bi-info-circle"></i> No payments found.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

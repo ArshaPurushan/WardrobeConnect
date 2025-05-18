@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="submit-report">
+    <h1>Submit Daily Activity Report</h1>
+    
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="title">Report Title</label>
+            <input type="text" id="title" name="title" class="form-control" placeholder="Enter report title" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Report Description</label>
+            <textarea id="description" name="description" class="form-control" rows="5" readonly>
+                Added {{ items_added }} new products to the inventory.
+                {{ bookings_made }} bookings were made today.
+            </textarea>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Submit Report</button>
+    </form>
+    
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert alert-info">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

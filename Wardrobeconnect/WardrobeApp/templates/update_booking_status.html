@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .update-booking-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+    }
+
+    .update-booking-container h2 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+    }
+
+    .update-booking-container p {
+        font-size: 16px;
+        margin: 10px 0;
+    }
+
+    label {
+        display: block;
+        margin-top: 20px;
+        font-weight: 500;
+    }
+
+    select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        font-size: 15px;
+        margin-top: 8px;
+    }
+
+    .btn-update {
+        background-color: #2980b9;
+        color: #fff;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 6px;
+        margin-top: 20px;
+        cursor: pointer;
+    }
+
+    .btn-update:hover {
+        background-color: #1f6391;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-top: 20px;
+        text-decoration: none;
+        color: #3498db;
+        font-weight: 500;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="update-booking-container">
+    <h2>📦 Update Booking Status</h2>
+
+    <p><strong>Booking ID:</strong> {{ booking.id }}</p>
+    <p><strong>Current Status:</strong> {{ booking.status|title }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <label for="status">Select New Status:</label>
+        <select name="status" id="status" required>
+            <option value="" disabled selected>Select a status</option>
+            <option value="pending">Pending</option>
+            <option value="shipped">Shipped</option>
+            <option value="out for delivery">Out for Delivery</option>
+            <option value="returned">Returned</option>
+            <option value="inspected">Inspected</option>
+        </select>
+        <button type="submit" class="btn-update">Update</button>
+    </form>
+
+    <a href="{% url 'employee_dashboard' %}" class="back-link">← Back to Dashboard</a>
+</div>
+{% endblock %}

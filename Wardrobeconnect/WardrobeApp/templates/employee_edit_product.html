@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WardrobeConnect - Edit Product</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #5e35b1;
+            --secondary-color: #7e57c2;
+            --light-color: #f5f5f5;
+            --dark-color: #333;
+            --success-color: #4caf50;
+            --border-radius: 8px;
+            --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            color: var(--secondary-color);
+        }
+        
+        .form-section {
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(94, 53, 177, 0.1);
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        select[multiple] {
+            height: auto;
+            min-height: 120px;
+        }
+        
+        .img-preview {
+            margin-top: 10px;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            max-width: 200px;
+        }
+        
+        .img-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .custom-file-upload {
+            display: inline-block;
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            border-radius: var(--border-radius);
+            border: 1px solid #ddd;
+            margin-top: 5px;
+            transition: all 0.3s;
+        }
+        
+        .custom-file-upload:hover {
+            background-color: #e0e0e0;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .sizes-container {
+            margin-bottom: 1.5rem;
+        }
+        
+        .size-stock-inputs {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f9f9f9;
+            border-radius: var(--border-radius);
+        }
+        
+        .size-stock-inputs > div {
+            margin-bottom: 1rem;
+        }
+        
+        .size-stock-inputs:empty {
+            display: none;
+        }
+        
+        .button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        
+        .button:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .button-secondary {
+            background-color: #f0f0f0;
+            color: var(--dark-color);
+        }
+        
+        .button-secondary:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            border-top: 1px solid #eee;
+            padding-top: 1.5rem;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+                margin: 1rem;
+            }
+            
+            .form-group {
+                margin-bottom: 1rem;
+            }
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-tshirt"></i> WardrobeConnect</h1>
+            <a href="javascript:history.back()" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+
+        <h2>Edit Product</h2>
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="form-section">
+                <div class="section-title">Basic Information</div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="name">Product Name</label>
+                        <input type="text" id="name" name="name" value="{{ product.name }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="price">Price</label>
+                        <input type="number" id="price" name="price" value="{{ product.price }}" step="0.01" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" required>{{ product.description }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Classification</div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category" required>
+                            <option value="0" {% if product.category == 0 %}selected{% endif %}>Clothing</option>
+                            <option value="1" {% if product.category == 1 %}selected{% endif %}>Accessories</option>
+                            <option value="2" {% if product.category == 2 %}selected{% endif %}>Footwear</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subcategory">Subcategory</label>
+                        <select id="subcategory" name="subcategory" required>
+                            <option value="0" {% if product.subcategory == 0 %}selected{% endif %}>Casual</option>
+                            <option value="1" {% if product.subcategory == 1 %}selected{% endif %}>Formal</option>
+                            <option value="2" {% if product.subcategory == 2 %}selected{% endif %}>Party Wear</option>
+                            <option value="3" {% if product.subcategory == 3 %}selected{% endif %}>Traditional</option>
+                            <option value="4" {% if product.subcategory == 4 %}selected{% endif %}>Sportswear</option>
+                            <option value="5" {% if product.subcategory == 5 %}selected{% endif %}>Winter Wear</option>
+                            <option value="6" {% if product.subcategory == 6 %}selected{% endif %}>Jewelry</option>
+                            <option value="7" {% if product.subcategory == 7 %}selected{% endif %}>Watches</option>
+                            <option value="8" {% if product.subcategory == 8 %}selected{% endif %}>Bags</option>
+                            <option value="9" {% if product.subcategory == 9 %}selected{% endif %}>Shoes</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="gender">Gender</label>
+                        <select id="gender" name="gender" required>
+                            <option value="0" {% if product.gender == 0 %}selected{% endif %}>Male</option>
+                            <option value="1" {% if product.gender == 1 %}selected{% endif %}>Female</option>
+                            <option value="2" {% if product.gender == 2 %}selected{% endif %}>Unisex</option>
+                            <option value="3" {% if product.gender == 3 %}selected{% endif %}>Boys</option>
+                            <option value="4" {% if product.gender == 4 %}selected{% endif %}>Girls</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="availability">Availability</label>
+                        <select id="availability" name="availability" required>
+                            <option value="0" {% if product.availability == 0 %}selected{% endif %}>Available</option>
+                            <option value="1" {% if product.availability == 1 %}selected{% endif %}>Rented</option>
+                            <option value="2" {% if product.availability == 2 %}selected{% endif %}>Returned</option>
+                            <option value="3" {% if product.availability == 3 %}selected{% endif %}>Damaged</option>
+                            <option value="4" {% if product.availability == 4 %}selected{% endif %}>Pending Approval</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Product Image</div>
+                <div class="form-group">
+                    <label for="image_upload">Product Image</label>
+                    <label for="image_upload" class="custom-file-upload">
+                        <i class="fas fa-cloud-upload-alt"></i> Choose File
+                    </label>
+                    <input type="file" id="image_upload" name="image">
+                    
+                    {% if product.image %}
+                    <div class="img-preview">
+                        <img src="{{ product.image.url }}" alt="Product Image">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">Sizes and Stock</div>
+                <div class="sizes-container">
+                    <div class="form-group">
+                        <label for="sizes">Sizes (Hold Ctrl or Cmd to select multiple)</label>
+                        <select name="sizes" id="sizes" multiple required>
+                            <option value="S" {% if "S" in selected_sizes %}selected{% endif %}>Small</option>
+                            <option value="M" {% if "M" in selected_sizes %}selected{% endif %}>Medium</option>
+                            <option value="L" {% if "L" in selected_sizes %}selected{% endif %}>Large</option>
+                            <option value="XL" {% if "XL" in selected_sizes %}selected{% endif %}>X-Large</option>
+                            <option value="XXL" {% if "XXL" in selected_sizes %}selected{% endif %}>XX-Large</option>
+                        </select>
+                    </div>
+                    
+                    <button type="button" class="button button-secondary" onclick="addSizeStock()">
+                        <i class="fas fa-plus-circle"></i> Add Stock for Selected Sizes
+                    </button>
+                    
+                    <div id="size-stock-inputs" class="size-stock-inputs">
+                        {% for size in product_sizes %}
+                            <div class="form-group">
+                                <label for="stock_{{ size.size }}">{{ size.size }} Stock</label>
+                                <input type="number" id="stock_{{ size.size }}" name="stock_{{ size.size }}" value="{{ size.stock }}" min="0" required>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="javascript:history.back()" class="button button-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="button">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // JavaScript to dynamically add size stock inputs
+        function addSizeStock() {
+            const sizes = document.getElementById('sizes').selectedOptions;
+            const sizeStockInputs = document.getElementById('size-stock-inputs');
+            
+            // Clear existing inputs
+            sizeStockInputs.innerHTML = '';
+        
+            Array.from(sizes).forEach(size => {
+                const sizeLabel = size.text;
+                const sizeValue = size.value;
+        
+                const div = document.createElement('div');
+                div.className = 'form-group';
+                div.innerHTML = `
+                    <label for="stock_${sizeValue}">${sizeLabel} Stock</label>
+                    <input type="number" id="stock_${sizeValue}" name="stock_${sizeValue}" min="0" required>
+                `;
+                sizeStockInputs.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>

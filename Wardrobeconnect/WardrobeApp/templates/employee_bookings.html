@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Dashboard - Assigned Bookings</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      background-color: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .dashboard-title {
+      font-size: 28px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .back-button {
+      text-decoration: none;
+      color: #007bff;
+      font-weight: 500;
+      font-size: 16px;
+    }
+
+    .booking-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .booking-table th, .booking-table td {
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    .booking-table th {
+      background-color: #007bff;
+      color: white;
+      font-weight: 600;
+    }
+
+    .booking-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    .btn {
+      background-color: #28a745;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+      transition: background 0.3s ease;
+    }
+
+    .btn:hover {
+      background-color: #218838;
+    }
+
+    .btn[disabled] {
+      background-color: #ccc;
+      pointer-events: none;
+    }
+
+    .action-column {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .fee {
+      color: red;
+      font-weight: bold;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #999;
+      padding: 20px;
+      font-size: 16px;
+    }
+
+    .mt-4 {
+      margin-top: 30px;
+    }
+
+    .d-flex {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    h5 {
+      color: #333;
+    }
+
+    @media (max-width: 768px) {
+      .booking-table th, .booking-table td {
+        font-size: 12px;
+        padding: 10px;
+      }
+
+      .dashboard-title {
+        font-size: 22px;
+      }
+
+      .back-button {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="dashboard-header">
+      <h2 class="dashboard-title">📦 Assigned Bookings</h2>
+      <a href="/employee_dashboard" class="back-button">← Back</a>
+    </div>
+
+    <table class="booking-table">
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Rental Date</th>
+          <th>Return Date</th>
+          <th>Tracking</th>
+          <th>Refund Status</th>
+          <th>Inspection Note</th>
+          <th>Late Fee</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for booking in bookings %}
+        <tr>
+          <td>{{ booking.id }}</td>
+          <td>{{ booking.booking_name }}</td>
+          <td>{{ booking.product_size.product.name }} ({{ booking.product_size.size }})</td>
+          <td>{{ booking.booked_at|date:"Y-m-d" }}</td>
+          <td>{{ booking.return_by|date:"Y-m-d" }}</td>
+
+          <!-- Tracking Status -->
+          <td>
+            {% with booking.tracking_status|lower as track %}
+              {% if track == "placed" %}
+                🛒 Placed
+              {% elif track == "processing" %}
+                🔧 Processing
+              {% elif track == "packed" %}
+                📦 Packed
+              {% elif track == "ready_for_pickup" %}
+                🚚 Ready for Pickup
+              {% elif track == "delivered" %}
+                ✅ Handed Over to Client
+              {% elif track == "returned" %}
+                📥 Returned
+              {% else %}
+                <span style="color:red;">❓ Unknown</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+
+          <!-- Refund Status -->
+          <td>
+            {% with booking.refund_status as status %}
+              {% if status == "approved" %}
+                <span style="color: green; font-weight: bold;">✅ Approved</span>
+              {% elif status == "processed" %}
+                <span style="color: blue; font-weight: bold;">💸 Processed</span>
+              {% elif status == "pending" %}
+                <span style="color: orange; font-weight: bold;">⏳ Pending</span>
+              {% else %}
+                <span style="color: gray;">Status Unknown</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+
+          <!-- Inspection Note -->
+          <td>{{ booking.inspection_note|default:"-" }}</td>
+
+          <!-- Late Fee -->
+          <td>
+            {% if booking.late_fee %}
+              <span class="fee">₹{{ booking.late_fee }}</span>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <!-- Actions -->
+          <!-- Actions -->
+          <td>
+            <div class="action-column">
+              <!-- Refund Button Logic -->
+               
+              {% if booking.tracking_status == "returned" and booking.refund_status != "processed" %}
+                <a href="{% url 'employee_confirm_refund' id=booking.id %}" class="btn">💰 Confirm Refund</a>
+              {% else %}
+                <span class="btn" style="background-color: #ccc; pointer-events: none;" title="No action available">
+                  {% if booking.refund_status == "processed" %}
+                    💰 Refund Processed
+                  {% elif booking.tracking_status != "returned" %}
+                    ⏳ Awaiting Return
+                  {% else %}
+                    ⏳ Refund Pending
+                  {% endif %}
+                </span>
+
+              {% endif %}
+
+              <!-- Tracking Update Button Logic -->
+              {% if booking.tracking_status == "returned" %}
+                <span class="btn" style="background-color: #ccc; pointer-events: none;" title="Update disabled">
+                  📍 Tracking Locked
+                </span>
+              {% else %}
+                <a href="{% url 'employee_update_booking' booking.id %}" class="btn">📍 Update Tracking</a>
+              {% endif %}
+            </div>
+          </td>
+
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" class="empty-state">No assigned bookings available.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="mt-4">
+      <div class="d-flex">
+        <h5><strong>Total Booking Amount:</strong> ₹{{ total_amount|floatformat:2 }}</h5>
+        <h5><strong>Total Refund Amount:</strong> ₹{{ total_refund|floatformat:2 }}</h5>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

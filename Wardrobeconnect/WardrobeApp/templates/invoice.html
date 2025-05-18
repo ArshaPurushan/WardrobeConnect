@@ -1,37 +1,50 @@
-{% extends "base.html" %}
+{% extends "baseUser.html" %}
 
 {% block content %}
-<h2>Invoice</h2>
+<div class="container mt-4">
+    <h2 class="text-center">🧾 Invoice</h2>
+    <div class="card shadow p-4 mt-4">
+        <h4 class="mb-3">📌 Invoice Details</h4>
+        <p><strong>Invoice ID:</strong> #{{ booking.id }}</p>
+        <p><strong>Date:</strong> {{ booking.booked_at|date:"Y-m-d H:i:s" }}</p>
+        <p><strong>Customer:</strong> {{ booking.booking_name }}</p>
+        <p><strong>Contact:</strong> {{ booking.booking_phone }}</p>
+        <p><strong>Delivery Address:</strong> {{ booking.booking_address }}</p>
+    </div>
 
-<p><strong>Invoice ID:</strong> #{{ booking.id }}</p>
-<p><strong>Date:</strong> {{ booking.rental_start_date|date:"Y-m-d H:i:s" }}</p>
-<p><strong>Customer:</strong> {{ booking.user.username }}</p>
-<p><strong>Address:</strong> {{ booking.address }}</p>
+    <div class="card shadow p-4 mt-4">
+        <h4 class="mb-3">📦 Booking Summary</h4>
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Product</th>
+                    <th>Size</th>
+                    <th>Quantity</th>
+                    <th>Rental Duration</th>
+                    <th>Total Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ booking.product_size.product.name }}</td>
+                    <td>{{ booking.product_size.size }}</td>
+                    <td>{{ booking.quantity }}</td>
+                    <td>{{ booking.return_by|date:"Y-m-d" }} ({{ booking.rental_duration }} days)</td>
+                    <td>₹{{ booking.total_price }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-<h3>Booking Details:</h3>
-<table border="1">
-    <tr>
-        <th>Product</th>
-        <th>Quantity</th>
-        <th>Rental Duration</th>
-        <th>Total Price</th>
-    </tr>
-    <tr>
-        <td>{{ booking.product.name }}</td>
-        <td>{{ booking.quantity }}</td>
-        <td>{{ booking.rental_duration }} days</td>
-        <td>₹{{ booking.total_price }}</td>
-    </tr>
-</table>
-
-<!-- Print & Download Buttons -->
-<button onclick="printInvoice()">🖨️ Print Invoice</button>
-<a href="{% url 'download_invoice' booking.id %}" class="button">📥 Download Invoice</a>
+    <div class="text-center mt-4">
+        <button class="btn btn-primary" onclick="printInvoice()">🖨️ Print Invoice</button>
+        
+    </div>
+</div>
 
 <script>
 function printInvoice() {
     window.print();
 }
 </script>
-
 {% endblock %}

@@ -1,272 +1,324 @@
-import logging
+import io
+import os
 import razorpay
+import pandas as pd
+from django.shortcuts import render, redirect ,get_object_or_404
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse  
 from razorpay.errors import BadRequestError, ServerError, SignatureVerificationError
-
-from datetime import timedelta
-from django.http import JsonResponse
-from django.shortcuts import render, redirect, get_object_or_404
-from datetime import datetime
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth import update_session_auth_hash
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.db import IntegrityError
-import json
-from django.http import HttpResponse
+from django.contrib.auth import update_session_auth_hash
 from django.contrib import messages
-from django.db.models import Q
-from django.core.files.storage import default_storage
+from django.http import JsonResponse
 from django.utils.timezone import now
-from .models import UserProfile, Login, Product, Booking, Feedback, Complaint, Employee, Admin ,Rental,SalesReport, ChatbotResponse, Cart, Wishlist, Payment
-from .forms import ProductForm, EmployeeForm, ProfileUpdateForm, CheckoutForm
-
+from datetime import timedelta
+from datetime import datetime
 import random
 from django.conf import settings
-import os
-
+from django.db.models import Q
+from django.template.loader import get_template
+from django.urls import reverse
+from django.db import transaction
+from .forms import EmployeeForm
+from .forms import ProductForm
+from .forms import ProfileUpdateForm, ProductReviewForm
+from .models import Login, UserProfile, Admin, Employee
+from .models import Product, ProductSize, Rental, Payment, Booking, Return
+from .models import Complaint, Report, Cart, Wishlist, Feedback
+from .models import ChatbotQuery, ProductRecommendation
+from django.contrib.auth.decorators import login_required
 
 # ==============================
 #         HOME PAGE
 # ==============================
-def index(request):
+def index(request: HttpRequest) -> HttpResponse:
     return render(request, "index.html")
 
+
 # ==============================
-#    USER REGISTRATION & LOGIN
+#       LOGIN
 # ==============================
 
-def user_register(request):
+
+def login_view(request):
     if request.method == "POST":
-        print("Received POST Data:", request.POST)  # Debugging
+        email = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "").strip()
 
-        name = request.POST.get("name", "").strip()
+        print(f"🛠️ Debug: Email entered: {email}, Password entered: {password}")
+
+        if not email or not password:
+            messages.error(request, "Both email and password are required!")
+            return redirect("login")
+
+        user = None  # Initialize user as None
+
+        # ✅ Check if the user exists in the Login table (Customers & Employees)
+        try:
+            user = Login.objects.get(email__iexact=email)
+        except Login.DoesNotExist:
+            pass  # Move to check Admin table
+
+        # ✅ If not found in Login, check the Admin table
+        if user is None:
+            try:
+                user = Admin.objects.get(email__iexact=email)
+                is_admin = True  # Flag to indicate this is an admin
+            except Admin.DoesNotExist:
+                print("❌ Debug: No user found in either Login or Admin table!")
+                messages.error(request, "Invalid email or password.")
+                return redirect("login")
+        else:
+            is_admin = False  # This is a regular user (not an admin)
+
+        print(f"✅ Debug: User found - {user.email}, Stored password: {user.password}")
+
+        # ⚠️ Plain-Text Password Check (No Hashing)
+        if user.password != password:
+            print("❌ Debug: Password does not match!")
+            messages.error(request, "Invalid email or password.")
+            return redirect("login")
+
+        # ✅ Set session variables
+        request.session["id"] = user.id
+        request.session["email"] = user.email
+        request.session["user_type"] = "0" if is_admin else str(user.types)
+
+        # ✅ Admin Login
+        if is_admin:
+            messages.success(request, "Admin login successful!")
+            return redirect("admin_dashboard")
+
+        # ✅ Customer Login
+        if user.types == 1:
+            profile = UserProfile.objects.filter(user=user).first()
+            if not profile:
+                messages.error(request, "User profile not found.")
+                return redirect("login")
+            
+            if profile.status == 1:
+                messages.error(request, "Your account has been reported and is under review.")
+                return redirect("login")
+            elif profile.status == 2:
+                messages.error(request, "Your account has been blocked.")
+                return redirect("login")
+
+            messages.success(request, "Customer login successful!")
+            return redirect("customer_dashboard")
+
+        # ✅ Employee Login
+        if user.types == 2:
+            employee = Employee.objects.filter(user=user).first()
+            if not employee:
+                messages.error(request, "Employee profile not found.")
+                return redirect("login")
+
+            messages.success(request, "Employee login successful!")
+            return redirect("employee_dashboard")
+
+    return render(request, "login.html")
+
+# ==============================
+#       LOGOUT
+# ==============================
+def logout_view(request):
+    return render(request, 'logout.html') 
+
+
+# ==============================
+#         USER REGISTRATION
+# ==============================
+
+def register(request):
+    if request.method == "POST":
+        print(request.POST)  # Debugging: Print POST data
+
+        # Extract and clean input data
+        name = request.POST.get("full_name", "").strip()
         phone = request.POST.get("phone", "").strip()
-        username = request.POST.get("username", "").strip()
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "").strip()
         confirm_password = request.POST.get("confirm_password", "").strip()
 
-        print(f"Checking Username: {username}")
-        print(f"Checking Email: {email}")
+        # Input validation
+        errors = []
+        
+        # Validate required fields
+        if not name:
+            errors.append("Name is required.")
+        if not phone:
+            errors.append("Phone number is required.")
+        if not email:
+            errors.append("Email is required.")
+        if not password:
+            errors.append("Password is required.")
+        if not confirm_password:
+            errors.append("Confirm password is required.")
 
-        if not username:
-            messages.error(request, "Username cannot be empty!")
-            return redirect("user_register")
+        # Validate email format
+        if "@" not in email or "." not in email:
+            errors.append("Please enter a valid email address.")
+        
+        # Check for existing email
+        if Login.objects.filter(email=email).exists():
+            errors.append("Email already exists.")
+        
+        # Password validation
+        if len(password) < 8:
+            errors.append("Password must be at least 8 characters long.")
+        
+        if password != confirm_password:
+            errors.append("Passwords do not match.")
 
-        if Login.objects.filter(Q(username=username) | Q(email=email)).exists():
-            messages.error(request, "Username or Email already exists!")
-            return redirect("user_register")
+        # If there are validation errors, return with messages
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, "register.html", {
+                'full_name': name,
+                'phone': phone,
+                'email': email
+            })
 
-        login_instance = Login.objects.create(username=username, password=password, types="user", status=True)
-        UserProfile.objects.create(user=login_instance, full_name=name, email=email, phone=phone, password=password)
+        try:
+            with transaction.atomic():  # Ensure atomic transactions
+                # Create login instance
+                login_instance = Login.objects.create(
+                    email=email,
+                    password=password,  # Plain text password (NOT SECURE)
+                    types=1,  # Ensure this matches the database field type
+                    status=True  # Users are active upon registration
+                )
 
-        messages.success(request, "Registration successful! You can now log in.")
-        return redirect("login")
+                # Create user profile
+                UserProfile.objects.create(
+                    user=login_instance, 
+                    full_name=name, 
+                    phone=phone
+                )
 
-    return render(request, "user_register.html")
+            messages.success(request, "Registration successful! Please log in.")
+            return redirect("login")
 
+        except Exception as e:
+            print(f"Registration error: {str(e)}")  # Debugging
+            messages.error(request, "An unexpected error occurred. Please try again.")
+            return redirect("register")
 
+    return render(request, "register.html")
 
+# ==============================
+#         USER MANGEMENT(ADMIN
+# ==============================
 
-# Check if the user exists in the Admin table
 def is_admin(user):
-    return Admin.objects.filter(username=user.username).exists()
+    return user.is_authenticated and user.is_staff  # Ensure only admins can access
 
-@login_required
-@user_passes_test(is_admin)
-def manage_users(request, status="pending"):
-    """View to manage users based on their approval status."""
+def manage_users(request, status="active"):
+    """View to manage users based on their status."""
     
-    # Define valid status mappings
-    status_mapping = {"pending": 0, "approved": 1, "rejected": 2}
-    
-    # Ensure provided status is valid
+    # if not is_admin(request.user):  # Check if the user is an admin
+    #     return redirect("customer_dashboard")  # Redirect non-admin users
+
+    status_mapping = {
+        "active": 0,
+        "reported": 1,
+        "blocked": 2,
+    }
+
     if status not in status_mapping:
-        status = "pending"  # Default to pending users
+        status = "active"  # Fallback to active
 
     users = UserProfile.objects.filter(status=status_mapping[status])
     
     return render(request, "manage_users.html", {"users": users, "status": status})
 
-@login_required
-@user_passes_test(is_admin)
-def approve_user(request, user_id):
-    """Approve a user by updating their status."""
+
+
+def report_user(request, user_id):
+    """Mark a user as reported."""
+    if not is_admin(request.user):
+        return redirect("customer_dashboard")
+
     user = get_object_or_404(UserProfile, id=user_id)
-    
+
     if user.status == 1:
-        messages.info(request, f"User '{user.full_name}' is already approved.")
+        messages.info(request, f"User '{user.full_name}' is already reported.")
     else:
-        user.status = 1  # Approved
+        user.status = 1  # Mark as reported
         user.save()
-        messages.success(request, f"User '{user.full_name}' approved successfully!")
-    
-    return redirect("manage_users", status="pending")
+        messages.warning(request, f"User '{user.full_name}' has been reported.")
 
-@login_required
-@user_passes_test(is_admin)
-def reject_user(request, user_id):
-    """Reject a user by updating their status."""
+    return redirect("manage_users_with_status", status="active")
+
+def block_user(request, user_id):
+    """Block a user."""
+    if not is_admin(request.user):
+        return redirect("customer_dashboard")
+
     user = get_object_or_404(UserProfile, id=user_id)
-    
+
     if user.status == 2:
-        messages.info(request, f"User '{user.full_name}' is already rejected.")
+        messages.info(request, f"User '{user.full_name}' is already blocked.")
     else:
-        user.status = 2  # Rejected
+        user.status = 2  # Block user
         user.save()
-        messages.error(request, f"User '{user.full_name}' has been rejected.")
-    
-    return redirect("manage_users", status="pending")
+        messages.error(request, f"User '{user.full_name}' has been blocked.")
 
+    return redirect("manage_users_with_status", status="active")
 
-def login_view(request):
-    if request.method == "POST":
-        username = request.POST.get("username", "").strip()
-        password = request.POST.get("password", "").strip()
+def activate_user(request, user_id):
+    """Reactivate a user from reported or blocked status."""
+    if not is_admin(request.user):
+        return redirect("customer_dashboard")
 
-        if not username or not password:
-            messages.error(request, "Both username and password are required!")
-            return redirect("login")
+    user = get_object_or_404(UserProfile, id=user_id)
 
-        # Debugging: Print username and password (Remove in production)
-        print(f"Trying to log in with Username: {username}, Password: {password}")
+    if user.status == 0:
+        messages.info(request, f"User '{user.full_name}' is already active.")
+    else:
+        user.status = 0  # Reactivate user
+        user.save()
+        messages.success(request, f"User '{user.full_name}' has been reactivated.")
 
-        # Check Admin Table
-        try:
-            admin = Admin.objects.get(username=username)
-            if admin.password == password:  # Plain text comparison
-                request.session["username"] = admin.username
-                request.session["user_type"] = "admin"
-                messages.success(request, "Admin login successful!")
-                return redirect("admin_dashboard")
-            else:
-                messages.error(request, "Invalid password.")
-                return redirect("login")
-        except Admin.DoesNotExist:
-            pass  # Continue checking other tables
-
-        # Check Login Table
-        try:
-            user = Login.objects.get(username=username)
-            if user.password == password:  # Plain text comparison
-                try:
-                    profile = UserProfile.objects.get(user=user)
-                    if profile.status == 0:
-                        messages.error(request, "Your account is pending approval.")
-                        return redirect("login")
-                    elif profile.status == 2:
-                        messages.error(request, "Your account has been rejected.")
-                        return redirect("login")
-                except UserProfile.DoesNotExist:
-                    messages.error(request, "User profile not found.")
-                    return redirect("login")
-
-                request.session["username"] = user.username
-                request.session["user_type"] = user.types
-                messages.success(request, f"{user.types.capitalize()} login successful!")
-                if user.types == "admin":
-                    return redirect("admin_dashboard")
-                elif user.types == "employee":
-                    return redirect("employee_dashboard")
-                elif user.types == "user":
-                    return redirect("customer_dashboard")
-            else:
-                messages.error(request, "Invalid password.")
-                return redirect("login")
-        except Login.DoesNotExist:
-            pass  # Continue checking Employee table
-
-        # Check Employee Table
-        try:
-            employee = Employee.objects.get(username=username)
-            if employee.password == password:  # Plain text comparison
-                request.session["username"] = employee.username
-                request.session["user_type"] = "employee"
-                messages.success(request, "Employee login successful!")
-                return redirect("employee_dashboard")
-            else:
-                messages.error(request, "Invalid password.")
-                return redirect("login")
-        except Employee.DoesNotExist:
-            messages.error(request, "Invalid username or password.")
-            return redirect("login")
-
-    return render(request, "login.html")
-
+    return redirect("manage_users_with_status", status="reported" if user.status == 1 else "blocked")
 
 # ==============================
-#       DASHBOARDS
+#         EMPLOYEE MANGEMENT(ADMIN
 # ==============================
-
-def admin_dashboard(request):
-    return render(request, "admin_dashboard.html")
-
-@login_required
-def employee_dashboard(request):
-    user_type = request.session.get("user_type")  # Get user type from session
-    print("User Type:", user_type)  # Debugging output
-
-    if user_type != "employee":
-        return redirect("login")  # Restrict access if not an employee
-
-    return render(request, "employee_dashboard.html")  # Render dashboard template
-
-@login_required
-def customer_dashboard(request):
-    username = request.session.get("username")
-    user_type = request.session.get("user_type")
-
-    if not username or user_type != "user":
-        messages.error(request, "Unauthorized access!")
-        return redirect("login")
-
-    try:
-        user = Login.objects.get(username=username)  # Fetch user
-    except Login.DoesNotExist:
-        messages.error(request, "User not found!")
-        return redirect("login")
-
-    # Fetch available products and rented items
-    products = Product.objects.filter(availability="available")
-    rented_products = Rental.objects.filter(customer=user, status="rented")
-
-    context = {
-        "products": products,
-        "rented_products": rented_products,
-    }
-    return render(request, "customer_dashboard.html", context)
-
-
-# ==============================
-#    EMPLOYEE MANAGEMENT
-# ==============================
-
 def manage_employees(request):
     employees = Employee.objects.all()
     return render(request, 'manage_employees.html', {'employees': employees})
 
 def add_employee(request):
     if request.method == "POST":
-        form = EmployeeForm(request.POST, request.FILES)  # Handle images
+        form = EmployeeForm(request.POST, request.FILES)  # Handle profile picture upload
         if form.is_valid():
             form.save()
+            messages.success(request, "New employee added successfully!")
             return redirect('manage_employees')
+        else:
+            messages.error(request, "Error adding employee. Please check the form.")
     else:
         form = EmployeeForm()
     
     return render(request, 'add_employee.html', {'form': form})
 
 def edit_employee(request, employee_id):
-    employee = Employee.objects.get(id=employee_id)
+    employee = get_object_or_404(Employee, id=employee_id)
     if request.method == "POST":
         form = EmployeeForm(request.POST, request.FILES, instance=employee)
         if form.is_valid():
             form.save()
+            messages.success(request, "Employee details updated successfully!")
             return redirect('manage_employees')
+        else:
+            messages.error(request, "Error updating employee details.")
     else:
         form = EmployeeForm(instance=employee)
     
-    return render(request, 'edit_employee.html', {'form': form})
+    return render(request, 'edit_employee.html', {'form': form, 'employee': employee})
 
 def delete_employee(request, employee_id):
     employee = get_object_or_404(Employee, id=employee_id)
@@ -275,194 +327,470 @@ def delete_employee(request, employee_id):
     return redirect('manage_employees')
 
 
-# ==============================
-#    PRODUCT MANAGEMENT (admin)
-# ==============================
-
-def admin_manage_inventory(request):
-    products = Product.objects.all()
-    return render(request, 'admin_manage_inventory.html', {'products': products})
-
-def approve_product(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-    product.status = "approved"
-    product.save()
-    return redirect('admin_manage_inventory')
-
-def reject_product(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-    product.status = "rejected"
-    product.save()
-    return redirect('admin_manage_inventory')
-
 
 # ==============================
-#    PRODUCT MANAGEMENT (employee)
+#    DASHBOARD
 # ==============================
+# Admin Dashboard
+def admin_dashboard(request):
+    return render(request, "admin_dashboard.html")
 
-# Configure logger
-logger = logging.getLogger(__name__)
+# Employee Dashboard
+def employee_dashboard(request):
+    email = request.session.get("email")
+    user_type = request.session.get("user_type")
 
-def employee_inventory(request):
-    """ Display inventory and handle product addition. """
-    if request.method == "POST":
-        form = ProductForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Product added successfully!")
-            return redirect("employee_inventory")  # Redirect to prevent duplicate submission
-        else:
-            messages.error(request, "Invalid form submission. Please check your inputs.")
+    if not email or user_type != "2":  # Employee type is "2"
+        messages.error(request, "Unauthorized access!")
+        return redirect("login")  
 
-    else:
-        form = ProductForm()
-
-    products = Product.objects.all()  # Fetch all products for display
-    return render(request, "employee_inventory.html", {"form": form, "products": products})
-
-
-def employee_add_product(request):
-    """ Allow employees to add new products dynamically. """
-    if request.session.get("user_type") != "employee":
-        messages.error(request, "Access Denied: Only employees can add products.")
+    try:
+        # Fetch employee using session email (linked via Login model)
+        employee = Employee.objects.get(user__email=email)
+    except Employee.DoesNotExist:
+        messages.error(request, "Employee not found!")
         return redirect("login")
 
-    CATEGORY_CHOICES = Product.CATEGORY_CHOICES  # Get category choices from the model
+    return render(request, "employee_dashboard.html", {"employee": employee})
+
+# Customer Dashboard
+def customer_dashboard(request):
+    email = request.session.get("email")
+    user_type = request.session.get("user_type")
+
+    if not email or user_type != "1":  # Ensure user_type is a string
+        messages.error(request, "Unauthorized access!")
+        return redirect("login")
+
+    # Fetch user details
+    login_instance = get_object_or_404(Login, email=email)
+    user_profile = get_object_or_404(UserProfile, user=login_instance)
+
+    # Fetch available products
+    products = Product.objects.filter(availability=1)
+
+    # Fetch user's rented items
+    rented_products = Rental.objects.filter(customer=user_profile.user, is_active=True)
+
+
+    # Fetch real-time counts for dynamic updates
+    cart_count = Cart.objects.filter(user=user_profile.user).count()
+    wishlist_count = Wishlist.objects.filter(user=user_profile.user).count()
+
+    # Handle AJAX request for dynamic updates
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({
+            "cart_count": cart_count,
+            "wishlist_count": wishlist_count,
+        })
+
+    # Normal page render
+    context = {
+        "user_profile": user_profile,
+        "products": products,
+        "rented_products": rented_products,
+        "cart_count": cart_count,
+        "wishlist_count": wishlist_count,
+    }
+    return render(request, "customer_dashboard.html", context)
+
+# ==============================
+#    PRODUCT MANAGEMENT (EMPLOYEE)
+# ==============================
+from django.db.models import Sum
+def employee_inventory(request):
+    """ Display inventory for employees with optional filtering. """
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied: Only employees can access inventory.")
+        return redirect("login")
+
+    email = request.session.get("email")
+    try:
+        login_instance = Login.objects.get(email=email)
+        employee = Employee.objects.get(user=login_instance)
+    except (Login.DoesNotExist, Employee.DoesNotExist):
+        employee = None
+        messages.error(request, "Employee profile not found.")
+        return redirect("login")
+
+    products = Product.objects.all()
+
+    # Filter: show only products added by the logged-in employee
+    filter_by = request.GET.get('filter_by')
+    if filter_by == 'my_products':
+        products = products.filter(added_by=employee)
+
+    for product in products:
+        product.total_stock = ProductSize.objects.filter(product=product).aggregate(Sum("stock"))["stock__sum"] or 0
+        product.available_sizes = list(ProductSize.objects.filter(product=product).values_list("size", flat=True))
+
+    return render(request, "employee_inventory.html", {"products": products, "employee": employee})
+
+
+def add_product(request):
+    """ Allow employees to add a product and its sizes + stock. """
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied.")
+        return redirect("login")
 
     if request.method == "POST":
-        name = request.POST.get("name", "").strip()
-        category = request.POST.get("category", "").strip().lower()
-        price = request.POST.get("price")
-        stock = request.POST.get("stock")
-        description = request.POST.get("description", "").strip()
-        image = request.FILES.get("image")
-
-        # Validate required fields
-        if not name or not category or not price or not stock:
-            messages.error(request, "All fields except image are required.")
-            return redirect("employee_add_product")
-
-        # Validate category choice
-        valid_categories = dict(Product.CATEGORY_CHOICES).keys()
-        if category not in valid_categories:
-            messages.error(request, "Invalid category selection.")
-            return redirect("employee_add_product")
-
-        # Convert price and stock to correct data types
+        email = request.session.get("email")
         try:
-            price = float(price)
-            stock = int(stock)
-            if price < 0 or stock < 0:
-                raise ValueError
-        except ValueError:
-            messages.error(request, "Invalid price or stock value! Ensure they are positive numbers.")
-            return redirect("employee_add_product")
+            login_instance = Login.objects.get(email=email)
+            employee = Employee.objects.get(user=login_instance)
+        except (Login.DoesNotExist, Employee.DoesNotExist):
+            messages.error(request, "Employee not found.")
+            return redirect("login")
 
-        # Create and save the product
-        new_product = Product.objects.create(
-            category=category,
-            name=name,
-            price=price,
-            stock=stock,
-            description=description,
-            image=image if image else None,
-            availability="available",
+        # Step 1: Get product details from the form
+        product = Product.objects.create(
+            name=request.POST.get('name'),
+            category=request.POST.get('category'),
+            subcategory=request.POST.get('subcategory'),
+            price=request.POST.get('price'),
+            description=request.POST.get('description'),
+            image=request.FILES.get('image'),
+            availability=request.POST.get('availability'),
+            gender=request.POST.get('gender'),
+            added_by=employee,
         )
 
-        messages.success(request, f"Product '{new_product.name}' added successfully!")
+        # Step 2: Save stock for each selected size
+        sizes = request.POST.getlist('sizes')
+        for size in sizes:
+            stock = int(request.POST.get(f"stock_{size}", 0))
+            ProductSize.objects.create(product=product, size=size, stock=stock)
+
+        messages.success(request, "Product added successfully!")
+        return redirect('employee_inventory')
+
+    return render(request, 'employee_add_product.html')
+
+
+def edit_product(request, product_id):
+    """ Edit product details + stock (only by the employee who added it). """
+    product = get_object_or_404(Product, id=product_id)
+
+    email = request.session.get("email")
+    try:
+        login_instance = Login.objects.get(email=email)
+        employee = Employee.objects.get(user=login_instance)
+    except (Login.DoesNotExist, Employee.DoesNotExist):
+        messages.error(request, "Unauthorized.")
+        return redirect("login")
+
+    if product.added_by != employee:
+        messages.error(request, "You can only edit products you added.")
         return redirect("employee_inventory")
 
-    return render(request, "employee_add_product.html", {"CATEGORY_CHOICES": CATEGORY_CHOICES})
+    product_sizes = ProductSize.objects.filter(product=product)
+    selected_sizes = [ps.size for ps in product_sizes]
+
+    if request.method == "POST":
+        # Update product fields
+        product.name = request.POST.get('name')
+        product.category = request.POST.get('category')
+        product.subcategory = request.POST.get('subcategory')
+        product.price = request.POST.get('price')
+        product.description = request.POST.get('description')
+        product.availability = request.POST.get('availability')
+        product.gender = request.POST.get('gender')
+
+        if 'image' in request.FILES:
+            product.image = request.FILES['image']
+
+        product.save()
+
+        # Update stock for sizes
+        sizes = request.POST.getlist('sizes')
+        existing = {ps.size: ps for ps in product_sizes}
+
+        for size in sizes:
+            stock = int(request.POST.get(f'stock_{size}', 0))
+            if size in existing:
+                existing[size].stock = stock
+                existing[size].save()
+            else:
+                ProductSize.objects.create(product=product, size=size, stock=stock)
+
+        messages.success(request, "Product updated successfully!")
+        return redirect('employee_inventory')
+
+    return render(request, 'employee_edit_product.html', {
+        'product': product,
+        'product_sizes': product_sizes,
+        'selected_sizes': selected_sizes,
+    })
+
 
 def delete_product(request, product_id):
-    """ Allow employees to delete a product (via POST request only). """
-    if request.session.get("user_type") != "employee":
-        messages.error(request, "Access Denied: Only employees can delete products.")
+    """ Delete a product if not rented. Only if the employee added it. """
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied.")
         return redirect("login")
 
     product = get_object_or_404(Product, id=product_id)
 
+    email = request.session.get("email")
+    try:
+        employee = Employee.objects.get(user__email=email)
+    except Employee.DoesNotExist:
+        messages.error(request, "Unauthorized.")
+        return redirect("login")
+
+    if product.added_by != employee:
+        messages.error(request, "You can only delete products you added.")
+        return redirect("employee_inventory")
+
+    if Rental.objects.filter(product_size__product=product, is_active=True).exists():
+        messages.error(request, "Cannot delete product that is currently rented.")
+        return redirect("employee_inventory")
+
     if request.method == "POST":
-        product_name = product.name
         product.delete()
-        messages.success(request, f"Product '{product_name}' deleted successfully!")
-        logger.info(f"Product '{product_name}' deleted by employee.")
+        messages.success(request, f"Product '{product.name}' deleted successfully!")
 
     return redirect("employee_inventory")
 
 
 def update_availability(request, product_id):
-    """ Allow employees to update product availability. """
-    if request.session.get("user_type") != "employee":
-        messages.error(request, "Access Denied: Only employees can update availability.")
+    """ Update availability status. """
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied.")
         return redirect("login")
 
     product = get_object_or_404(Product, id=product_id)
 
+    email = request.session.get("email")
+    try:
+        employee = Employee.objects.get(user__email=email)
+    except Employee.DoesNotExist:
+        messages.error(request, "Unauthorized.")
+        return redirect("login")
+
+    if product.added_by != employee:
+        messages.error(request, "You can only update products you added.")
+        return redirect("employee_inventory")
+
     if request.method == "POST":
-        availability = request.POST.get("availability")
+        try:
+            availability = int(request.POST.get("availability"))
+        except (TypeError, ValueError):
+            messages.error(request, "Invalid availability.")
+            return redirect("employee_inventory")
 
-        valid_statuses = [key for key, _ in Product.AVAILABILITY_CHOICES]
-
-        if availability in valid_statuses:
+        if availability in dict(Product.AVAILABILITY_CHOICES).keys():
             product.availability = availability
             product.save()
-            messages.success(request, f"Product availability updated to '{availability}'.")
-            logger.info(f"Availability for product '{product.name}' updated to '{availability}'.")
+
+            if availability == 3:  # Damaged
+                product.remove_if_damaged()
+                messages.warning(request, f"Product '{product.name}' marked as damaged.")
+            else:
+                messages.success(request, f"Availability updated to '{product.get_availability_display()}'.")
         else:
-            messages.error(request, f"Invalid availability status. Choose from: {', '.join(valid_statuses)}")
+            messages.error(request, "Invalid availability selected.")
 
     return redirect("employee_inventory")
+
+
+
+
+# ==============================
+#    PRODUCT MANAGEMENT (admin)
+# ==============================
+
+from django.contrib import messages
+
+def admin_manage_inventory(request):
+    products = Product.objects.all()
+    pending_products = Product.objects.filter(is_verified=0)  # Fix: Use is_verified instead of status
+
+    if pending_products.exists():
+        messages.warning(request, f"There are {pending_products.count()} pending products awaiting approval.")
+
+    for product in products:
+        product.is_available = product.total_stock() > 0  # Use total_stock() instead of stock
+        product.is_rented = Rental.objects.filter(product_size__in=product.sizes.all(), is_active=True).exists()  # Fix rental tracking
+
+        print(f"Total stock for {product.name}: {product.total_stock()}")
+    
+    return render(request, 'admin_manage_inventory.html', {'products': products})
+
+def approve_product(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    product.is_verified = 1  # Setting to approved (use is_verified field)
+    product.save()
+    messages.success(request, f"Product {product.name} has been approved.")
+    return redirect('admin_manage_inventory')
+
+def reject_product(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    product.is_verified = 2  # Setting to rejected (use is_verified field)
+    product.save()
+    messages.error(request, f"Product {product.name} has been rejected.")
+    return redirect('admin_manage_inventory')
+
+def delete_product(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+
+    # Optional: Add any deletion restrictions here (like only delete if not rented)
+    if Rental.objects.filter(product_size__in=product.sizes.all(), is_active=True).exists():
+        messages.error(request, f"Cannot delete '{product.name}' as it is currently rented.")
+        return redirect('admin_manage_inventory')
+
+    product.delete()
+    messages.success(request, f"Product '{product.name}' has been deleted.")
+    return redirect('admin_manage_inventory')
+
+# ==============================
+#    RENTED PRODUCT DETAILS
+# ==============================
+
+from django.db.models import Count 
+def employee_rented_products(request):
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied: Only employees can access inventory.")
+        return redirect("login")
+
+    email = request.session.get("email")
+    try:
+        login_instance = Login.objects.get(email=email)
+        employee = Employee.objects.get(user=login_instance)
+    except (Login.DoesNotExist, Employee.DoesNotExist):
+        messages.error(request, "Employee profile not found.")
+        return redirect("login")
+
+    # Bookings handled by this employee (status 1 = rented)
+    rented_bookings = Booking.objects.filter(
+        assigned_employee=employee,
+        status=1
+    ).select_related('product_size__product', 'customer')
+
+    # Add customer full name from UserProfile
+    bookings_with_customer_names = []
+    for booking in rented_bookings:
+        try:
+            customer_full_name = booking.customer.userprofile.full_name
+        except UserProfile.DoesNotExist:
+            customer_full_name = "Unknown Customer"
+        
+        bookings_with_customer_names.append({
+            'booking': booking,
+            'customer_full_name': customer_full_name
+        })
+
+    # Group by product and count how many times each product was rented by this employee
+    product_rent_data = (
+        Booking.objects
+        .filter(assigned_employee=employee, status=1)
+        .values('product_size__product')
+        .annotate(rent_count=Count('id'))
+    )
+
+    # Replace product ID with actual Product object
+    product_rent_counts = []
+    for entry in product_rent_data:
+        try:
+            product = Product.objects.get(id=entry['product_size__product'])
+            product_rent_counts.append({
+                'product': product,
+                'rent_count': entry['rent_count']
+            })
+        except Product.DoesNotExist:
+            continue  # skip if product not found
+
+    return render(request, 'employee_rented_products.html', {
+        'bookings': bookings_with_customer_names,
+        'product_rent_counts': product_rent_counts
+    })
 
 # ==============================
 #    SEARCH PRODUCT
 # ==============================
 
 def search(request):
-    query = request.GET.get('q', '').strip()
+    query = request.GET.get("q", "").strip()  # Search by name or description
+    category = request.GET.get("category", "").strip()  # Typed category
+    subcategory = request.GET.get("subcategory", "").strip()  # Typed subcategory
+    gender = request.GET.get("gender", "")  # Dropdown for gender
+    size = request.GET.get("size", "")  # Dropdown for size
+    price_min = request.GET.get("price_min", "")  # Min price
+    price_max = request.GET.get("price_max", "")  # Max price
 
+    # Start with all available products
+    products = Product.objects.filter(availability=0, is_verified="1")
+
+    # Filter by search query (name or description)
     if query:
-        if query.isdigit():  # If user searches by price (numeric input)
-            products = Product.objects.filter(price__lte=query)  # Less than or equal to
-        else:
-            products = Product.objects.filter(
-                Q(name__icontains=query) | 
-                Q(category__icontains=query)
-            )
-    else:
-        products = Product.objects.all()
+        products = products.filter(Q(name__icontains=query) | Q(description__icontains=query))
 
-    # Handle AJAX request for real-time search
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  
-        product_list = [
-            {
-                "id": product.id,
-                "name": product.name,
-                "category": product.category,
-                "price": str(product.price),
-                "image": product.image.url if product.image else None  # Handle missing image
-            }
-            for product in products
-        ]
-        return JsonResponse({"products": product_list})
+    # Filter by category and subcategory (typed)
+    if category:
+        products = products.filter(category__icontains=category)
+    if subcategory:
+        products = products.filter(subcategory__icontains=subcategory)
 
-    return render(request, 'search.html', {'products': products})
+    # Filter by gender (dropdown)
+    if gender:
+        products = products.filter(gender=gender)
 
+    # Filter by price range (min and max)
+    if price_min.isdigit() and price_max.isdigit():
+        products = products.filter(price__gte=int(price_min), price__lte=int(price_max))
+    elif price_min.isdigit():
+        products = products.filter(price__gte=int(price_min))
+    elif price_max.isdigit():
+        products = products.filter(price__lte=int(price_max))
+
+    # Filter by size (dropdown)
+    if size:
+        products = products.filter(sizes__size=size, sizes__stock__gt=0).distinct()
+
+    # Pass products to the template
+    context = {
+        "products": products,
+        "categories": Product.CATEGORY_CHOICES,
+        "subcategories": Product.SUBCATEGORY_CHOICES,
+        "genders": Product.GENDER_CHOICES,
+        "sizes": ProductSize.SIZE_CHOICES,
+    }
+
+    return render(request, "search.html", context)
 
 # ==============================
-#    PRODUCT DETAILS 
+#    PRODUCT DETAILS (Clean)
 # ==============================
 
 def product_details(request, product_id):
+    # Get the main product
     product = get_object_or_404(Product, id=product_id)
-    return render(request, 'product_details.html', {'product': product})
+
+    # Get available sizes that are in stock
+    available_sizes = ProductSize.objects.filter(product=product, stock__gt=0)
+
+    # Get all recommended products for this product
+    recommendations = ProductRecommendation.objects.filter(product=product).select_related('recommended_product')
+
+    # Only include recommended products that are in stock
+    recommended_products = [
+        rec.recommended_product
+        for rec in recommendations
+        if ProductSize.objects.filter(product=rec.recommended_product, stock__gt=0).exists()
+    ]
+
+    return render(request, "product_details.html", {
+        "product": product,
+        "available_sizes": available_sizes,
+        "recommended_products": recommended_products,
+    })
 
 
 # ==============================
 #    CHECK AVAILABILITY
 # ==============================
 
-@login_required
+
 def check_availability(request):
     if request.method == "POST":
         product_id = request.POST.get("product_id")
@@ -473,113 +801,126 @@ def check_availability(request):
 
         product = get_object_or_404(Product, id=product_id)
 
-        # Convert dates
-        rental_start_date = datetime.strptime(rental_start_date, "%Y-%m-%d").date()
-        rental_end_date = datetime.strptime(rental_end_date, "%Y-%m-%d").date()
-        rental_days = (rental_end_date - rental_start_date).days
+        try:
+            rental_start_date = datetime.strptime(rental_start_date, "%Y-%m-%d").date()
+            rental_end_date = datetime.strptime(rental_end_date, "%Y-%m-%d").date()
+        except ValueError:
+            return JsonResponse({"error": "Invalid date format"}, status=400)
 
+        rental_days = (rental_end_date - rental_start_date).days
         if rental_days <= 0:
             return JsonResponse({"error": "Invalid rental period"}, status=400)
 
-        # Check if stock is available
-        if product.stock < quantity:
-            return JsonResponse({"error": "Not enough stock available"}, status=400)
+        try:
+            product_size = ProductSize.objects.get(product=product, size=size)
+        except ProductSize.DoesNotExist:
+            return JsonResponse({"error": "Size not available for the selected product"}, status=400)
 
-        # Add to cart
-        cart_item, created = Cart.objects.get_or_create(
-            user=request.user,
-            product=product,
-            size=size,
-            rental_start_date=rental_start_date,
-            rental_end_date=rental_end_date,
-            defaults={"quantity": quantity},
+        overlapping_bookings = Booking.objects.filter(
+            product_size=product_size,
+            is_active=True,
+            booked_at__lte=rental_end_date,
+            return_by__gte=rental_start_date,
         )
 
-        if not created:
-            cart_item.quantity += quantity
-            cart_item.save()
+        booked_quantity = sum([1 for _ in overlapping_bookings])
 
-        return JsonResponse({"message": "Product added to cart", "cart_id": cart_item.id}, status=200)
-    
+        available_stock = product_size.stock - booked_quantity
+
+        if available_stock < quantity:
+            return JsonResponse({"error": f"Only {available_stock} item(s) available for selected period"}, status=400)
+
+        return JsonResponse({"message": "Product is available", "available_stock": available_stock}, status=200)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
 
 # ==============================
-#     CART
+#    CART
 # ==============================
 
 
-#     ADD TO CART
-@login_required
-def add_to_cart(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
 
-    # ✅ Fetch correct user from session
-    username = request.session.get("username")  
-    user = get_object_or_404(Login, username=username)  
+from django.db import transaction
+
+
+def add_to_cart(request, product_id, size_id):
+    if request.method != "POST":
+        messages.error(request, "Invalid request method.")
+        return redirect("product_detail", product_id=product_id)
+
+    email = request.session.get("email")
+    if not email:
+        messages.error(request, "Please log in to continue.")
+        return redirect("login")
+
+    user = get_object_or_404(Login, email=email)
+    product_size = get_object_or_404(ProductSize.objects.select_related("product"), id=size_id)
 
     try:
-        quantity = int(request.POST.get('quantity', 1))
+        quantity = int(request.POST.get("quantity", 1))
         if quantity <= 0:
-            messages.error(request, "Quantity must be at least 1.")
-            return redirect(request.META.get('HTTP_REFERER', 'cart'))
+            raise ValueError
+    except ValueError:
+        messages.error(request, "Invalid quantity.")
+        return redirect("product_detail", product_id=product_id)
 
-        # ✅ Ensure one cart item per product per user (increase quantity if already in cart)
-        cart_item, created = Cart.objects.get_or_create(user=user, product=product)
-        if not created:
-            cart_item.quantity += quantity  # Increase quantity instead of overwriting
-        else:
-            cart_item.quantity = quantity  # Set quantity for new items
+    if product_size.stock < quantity:
+        messages.error(request, f"Only {product_size.stock} left in stock.")
+        return redirect("product_detail", product_id=product_id)
+
+    with transaction.atomic():
+        cart_item, created = Cart.objects.get_or_create(user=user, product_size=product_size)
+        cart_item.quantity = min(cart_item.quantity + quantity, product_size.stock) if not created else quantity
         cart_item.save()
 
-        messages.success(request, f"{product.name} added to cart!")
-
-    except IntegrityError:
-        messages.error(request, "Error adding product to cart.")
-
-    # ✅ Redirect back to product page instead of forcing cart view
-    return redirect(request.META.get('HTTP_REFERER', 'cart'))
-
-
+    messages.success(request, f"{product_size.product.name} added to your cart!")
+    return redirect("cart")
 
 #     VIEW CART
-@login_required
-def cart(request):
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
 
+def cart(request):
+    email = request.session.get("email")
+    if not email:
+        messages.error(request, "You need to be logged in to view the cart.")
+        return redirect("login")
+
+    user = get_object_or_404(Login, email=email)
+
+    # Fetch all cart items for this user
     cart_items = Cart.objects.filter(user=user)
 
-    for item in cart_items:
-        item.total_price = item.quantity * item.product.price
+    # Calculate Grand Total
+    grand_total = sum(item.product_size.product.price * item.quantity for item in cart_items)
 
-    grand_total = sum(item.quantity * item.product.price for item in cart_items)  # ✅ Fixed total price calculation
-
-    return render(request, 'cart.html', {'cart_items': cart_items, 'grand_total': grand_total})
+    return render(request, "cart.html", {"cart_items": cart_items, "grand_total": grand_total})
 
 
 
 #     REMOVE FROM CART
-@login_required
-def remove_from_cart(request, product_id):
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
 
-    cart_item = get_object_or_404(Cart, user=user, product_id=product_id)
+def remove_from_cart(request, cart_id):
+    email = request.session.get("email")
+    user = get_object_or_404(Login, email=email)
+
+    # Get the cart item using the cart ID
+    cart_item = get_object_or_404(Cart, id=cart_id, user=user)
     cart_item.delete()
-    messages.success(request, "Item removed from cart.")
 
-    return redirect('cart')
+    messages.success(request, "Item removed from cart.")
+    return redirect("cart")
+
 
 
 
 #     UPDATE CART (WITH AJAX)
-@login_required
+
 def update_cart(request, product_id):
     if request.method == "POST":
         try:
             new_quantity = int(request.POST.get('quantity', 1))
 
-            username = request.session.get("username")
-            user = get_object_or_404(Login, username=username)
+            email = request.session.get("email")
+            user = get_object_or_404(Login, email=email)
 
             cart_item = get_object_or_404(Cart, user=user, product_id=product_id)
 
@@ -603,10 +944,10 @@ def update_cart(request, product_id):
 
 
 #     CLEAR CART
-@login_required
+
 def clear_cart(request):
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
+    email = request.session.get("email")
+    user = get_object_or_404(Login, email=email)
 
     Cart.objects.filter(user=user).delete()
     messages.success(request, "Your cart has been cleared.")
@@ -616,10 +957,9 @@ def clear_cart(request):
 
 
 #     MOVE TO WISHLIST
-@login_required
 def move_to_wishlist(request, product_id):
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
+    email = request.session.get("email")
+    user = get_object_or_404(Login, email=email)
 
     cart_item = get_object_or_404(Cart, user=user, product_id=product_id)
 
@@ -634,115 +974,184 @@ def move_to_wishlist(request, product_id):
 
     return redirect('cart')
 
+
+
 # ==============================
 #    WISHLIST
 # ==============================
+# ⭐ View Wishlist
+def wishlist_view(request):
+    if "email" not in request.session:
+        messages.error(request, "Please log in to access your wishlist.")
+        return redirect("login")
 
+    user = get_object_or_404(Login, email=request.session["email"])
+    wishlist_items = Wishlist.objects.filter(user=user).select_related("product")
 
-#    VIEW WISHLIST
-def wishlist(request):
-    wishlist = request.session.get('wishlist', {})
-    return render(request, 'wishlist.html', {'wishlist_items': wishlist})
+    return render(request, "wishlist.html", {"wishlist_items": wishlist_items})
 
-
-#    ADD TO WISHLIST
-@login_required
+# ⭐ Add to Wishlist
 def add_to_wishlist(request, product_id):
+    if "email" not in request.session:
+        messages.error(request, "Please log in to add items to your wishlist.")
+        return redirect("login")
+
+    user = get_object_or_404(Login, email=request.session["email"])
     product = get_object_or_404(Product, id=product_id)
-    wishlist_item, created = Wishlist.objects.get_or_create(user=request.user, product=product)
 
+    wishlist_item, created = Wishlist.objects.get_or_create(user=user, product=product)
+    
     if created:
-        messages.success(request, f"{product.name} added to wishlist! ✅")
+        messages.success(request, "Item added to wishlist successfully!")
     else:
-        messages.info(request, f"{product.name} is already in your wishlist! ℹ️")
+        messages.info(request, "This item is already in your wishlist.")
 
-    return redirect('wishlist')
+    return redirect("wishlist")
 
-
-#    REMOVE FROM WISHLIST
+# ⭐ Remove from Wishlist
 def remove_from_wishlist(request, product_id):
-    wishlist = request.session.get('wishlist', {})
+    if "email" not in request.session:
+        messages.error(request, "Please log in to remove items from your wishlist.")
+        return redirect("login")
 
-    if str(product_id) in wishlist:
-        del wishlist[str(product_id)]
-        request.session['wishlist'] = wishlist
-        request.session.modified = True  # Ensures session updates are saved
-        messages.success(request, "Item removed from wishlist 🗑️.")
+    user = get_object_or_404(Login, email=request.session["email"])
+
+    if Wishlist.objects.filter(user=user, product_id=product_id).exists():
+        Wishlist.objects.filter(user=user, product_id=product_id).delete()
+        messages.success(request, "Item removed from wishlist successfully!")
     else:
-        messages.warning(request, "Item not found in wishlist! ⚠️")
+        messages.error(request, "Item not found in wishlist.")
 
-    return redirect('wishlist')
+    return redirect("wishlist")
 
+
+def add_to_cart_from_wishlist(request, product_id):
+    if "email" not in request.session:
+        messages.error(request, "Please log in to add items to your cart.")
+        return redirect("login")
+
+    user = get_object_or_404(Login, email=request.session["email"])
+    product = get_object_or_404(Product, id=product_id)
+
+    # Move product from wishlist to cart
+    Wishlist.objects.filter(user=user, product=product).delete()
+    Cart.objects.create(user=user, product=product, quantity=1)  # Adjust as needed
+
+    messages.success(request, "Item moved to cart successfully!")
+    return redirect("wishlist")
 
 # ==============================
 #    INVOICE
 # ==============================
 from django.urls import reverse
-@login_required
-def invoice(request, booking_id):
-    booking = get_object_or_404(Booking, id=booking_id)
 
-    # 🔹 Delay redirect to order history by a few seconds
-    response = render(request, "invoice.html", {"booking": booking})
-    
-    # After viewing the invoice, redirect to order history
-    response["Refresh"] = "5; url=" + request.build_absolute_uri(reverse("order_history"))
-    
+def invoice(request, booking_id):
+    user_id = request.session.get("id")
+    booking = get_object_or_404(Booking, id=booking_id, customer_id=user_id)
+
+    # ✅ Notify the user about rental confirmation
+    messages.success(request, "✅ Your rental has been confirmed! Redirecting to rental history...")
+
+    # 🔹 Render invoice and set auto-redirect to rental history
+    response = render(request, "invoice.html", {
+        "booking": booking,
+        "name": booking.booking_name,
+        "address": booking.booking_address,
+        "phone_number": booking.booking_phone,
+    })
+
+
+    response["Refresh"] = f"5; url={request.build_absolute_uri(reverse('rental_history'))}"
+
     return response
 
 # ==============================
 #    CHECKOUT
 # ==============================
 
-#@login_required
-from decimal import Decimal
+
+from decimal import Decimal, ROUND_HALF_UP 
+from django.utils.timezone import make_aware
 
 def checkout(request):
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
+    email = request.session.get("email")
+    user = get_object_or_404(Login, email=email)
 
     cart_items = Cart.objects.filter(user=user)
+
     if not cart_items.exists():
-        messages.error(request, "Your cart is empty.")
-        return redirect("cart")
+        messages.warning(request, "Your cart is empty!")
+        return redirect('cart')
 
-    # 🔥 Calculate Total Price
-    total_price = sum(Decimal(str(item.quantity)) * Decimal(str(item.product.price)) for item in cart_items)
+    # ✅ Always calculate totals, for GET and POST
+    total_price = sum(item.quantity * item.product_size.product.price for item in cart_items)
+    total_price = Decimal(total_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    security_deposit = (total_price * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    grand_total = (total_price + security_deposit).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    # 🔥 Dynamic Security Deposit (Set 10% of subtotal)
-    security_deposit = total_price * Decimal("0.10")  
-    total_with_deposit = total_price + security_deposit
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        phone = request.POST.get('phone')
+        address = request.POST.get('address')
+        landmark = request.POST.get('landmark', '')
 
-    # 🔥 Ensure Booking Exists
-    first_cart_item = cart_items.first()
-    if first_cart_item:
-        booking, created = Booking.objects.get_or_create(
-            user=user, 
-            status="Pending",
-            defaults={"total_price": total_with_deposit, "product": first_cart_item.product}
-        )
-        if not created:
-            booking.total_price = total_with_deposit
-            booking.save()
-    else:
-        booking = None  
+        # Get and process rental start and end dates
+        rental_start_str = request.POST.get('rental_start_date')  # from form input
+        rental_end_str = request.POST.get('rental_end_date')
 
-    return render(request, "checkout.html", {
-        "cart_items": cart_items,
-        "subtotal": total_price,  # ✅ Ensure subtotal is passed
-        "security_deposit": security_deposit,  
-        "grand_total": total_with_deposit,  # ✅ Ensure grand total is passed
-        "booking": booking
+        try:
+            rental_start = make_aware(datetime.strptime(rental_start_str, "%Y-%m-%d")) if rental_start_str else now()
+            rental_end = make_aware(datetime.strptime(rental_end_str, "%Y-%m-%d")) if rental_end_str else (rental_start + timedelta(days=7))
+        except Exception as e:
+            messages.error(request, "Invalid rental dates provided.")
+            return redirect('checkout')
+
+        last_booking = None
+
+        for item in cart_items:
+            product_size = item.product_size
+            employee = product_size.product.added_by
+
+            last_booking = Booking.objects.create(
+                customer=user,
+                product_size=product_size,
+                assigned_employee=employee,
+                status=1,
+                tracking_status="placed",
+                is_active=True,
+                booked_at=rental_start,
+                return_by=rental_end,
+                security_deposit=(product_size.product.price * item.quantity * Decimal("0.10")).quantize(Decimal("0.01")),
+                total_price=(product_size.product.price * item.quantity).quantize(Decimal("0.01")),
+                booking_name=name,
+                booking_address=f"{address}, Landmark: {landmark}",
+                booking_phone=phone,
+              
+            )
+
+        cart_items.delete()
+        messages.success(request, "Booking successful!")
+
+        return redirect('payment_page', booking_id=last_booking.id)
+
+    # ✅ Pass totals to template for GET request
+    return render(request, 'checkout.html', {
+        'cart_items': cart_items,
+        'total_price': total_price,
+        'security_deposit': security_deposit,
+        'grand_total': grand_total
     })
+
+
 
 # ==============================
 #    ORDER HISTORY
 # ==============================
 
-@login_required
+
 def order_history(request):
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
+    email = request.session.get("email")
+    user = get_object_or_404(Login, email=email)
 
     # ✅ Fetch only "Paid" bookings for this user
     bookings = Booking.objects.filter(user=user, status="Paid").order_by("-rental_start_date")
@@ -750,14 +1159,17 @@ def order_history(request):
     return render(request, "order_history.html", {"bookings": bookings})
 
 
+
+
+
 # ==============================
 #    RENTAL & PAYMENT PROCESSING
 # ==============================
 
-@login_required
+
 def rent_product(request, product_id):
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
+    email = request.session.get("email")
+    user = get_object_or_404(Login, email=email)
 
     product = get_object_or_404(Product, id=product_id)
 
@@ -780,7 +1192,7 @@ def rent_product(request, product_id):
                 rental_start_date=now(),
                 rental_end_date=now() + timedelta(days=rental_duration),
                 total_price=total_price,
-                status="Pending"
+                status="1"
             )
 
             messages.success(request, "Rental request submitted! Proceed to payment.")
@@ -793,7 +1205,7 @@ def rent_product(request, product_id):
     return render(request, "rent_product.html", {"product": product})
 
 
-@login_required
+
 def booking_confirmation(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
     return render(request, "booking_confirmation.html", {"booking": booking})
@@ -806,405 +1218,972 @@ def booking_confirmation(request, booking_id):
 def payment_page(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
 
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET_KEY))
+    order_amount = int(booking.total_price * 100)  # Convert to paisa
+    order_currency = "INR"
+
     try:
-        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET_KEY))
-
-        # 🏷️ Convert total price + deposit to paise (Razorpay requires amounts in paise)
-        amount_in_paise = int((booking.total_price + booking.security_deposit) * 100)
-
-        # 🏷️ Create Razorpay order
-        payment_order = client.order.create({
-            "amount": amount_in_paise,
-            "currency": "INR",
-            "payment_capture": 1,  # Auto-capture the payment
+        razorpay_order = client.order.create({
+            "amount": order_amount,
+            "currency": order_currency,
+            "payment_capture": "1"
         })
+    except:
+        return render(request, "payment_page.html", {"error": "Payment gateway issue. Please try again."})
 
-        # 🏷️ Store order ID in session
-        request.session["razorpay_order_id"] = payment_order["id"]
+    return render(request, "payment_page.html", {
+        "booking": booking,
+        "order": razorpay_order,
+        "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+        "security_deposit": booking.security_deposit,
+    })
 
-        return render(request, "payment_page.html", {
-            "booking": booking,
-            "razorpay_key_id": settings.RAZORPAY_KEY_ID,
-            "payment_order": payment_order
-        })
 
-    except (BadRequestError, ServerError) as e:
-        messages.error(request, f"Payment setup failed: {str(e)}")
-        return redirect("checkout")
-
-@login_required
 def confirm_order(request, booking_id):
-    booking = get_object_or_404(Booking, id=booking_id)
-
     if request.method == "POST":
-        razorpay_order_id = request.session.get("razorpay_order_id")
+        booking = get_object_or_404(Booking, id=booking_id)
+
+        # ✅ Extract RazorpayX response data
         payment_id = request.POST.get("razorpay_payment_id")
+        order_id = request.POST.get("razorpay_order_id")
         signature = request.POST.get("razorpay_signature")
 
-        if not razorpay_order_id or not payment_id or not signature:
-            messages.error(request, "Payment verification failed. Please try again.")
-            return redirect("payment_page", booking_id=booking.id)
+        # ✅ Ensure a Payment entry exists
+        payment, created = Payment.objects.get_or_create(
+            booking=booking,
+            defaults={
+                "amount": booking.total_price,
+                "payment_method": 1,  # Assuming UPI (change if needed)
+                "status": 0,  # Pending
+            },
+        )
+
+        # ✅ Initialize RazorpayX Client
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET_KEY))
 
         try:
-            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_SECRET_KEY))
-            
-            params_dict = {
-                'razorpay_order_id': razorpay_order_id,
-                'razorpay_payment_id': payment_id,
-                'razorpay_signature': signature
+            # ✅ Verify the payment signature
+            client.utility.verify_payment_signature({
+                "razorpay_payment_id": payment_id,
+                "razorpay_order_id": order_id,
+                "razorpay_signature": signature
+            })
+
+            # ✅ Fetch payment details from RazorpayX
+            payment_details = client.payment.fetch(payment_id)
+
+            if payment_details["status"] == "captured":
+                # ✅ Update payment record as successful
+                payment.transaction_id = payment_id
+                payment.status = 1  # Successful
+                payment.save()
+
+                return JsonResponse({"success": True, "redirect_url": f"/invoice/{booking.id}/"})
+
+            else:
+                payment.status = 2  # Failed
+                payment.save()
+                return JsonResponse({"success": False, "message": "Payment failed. Please try again."})
+
+        except razorpay.errors.SignatureVerificationError:
+            payment.status = 2  # Failed
+            payment.save()
+            return JsonResponse({"success": False, "message": "Payment verification failed. Please try again."})
+
+    return JsonResponse({"success": False, "message": "Invalid request."})
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from .models import Booking, Return, Payment, Rental, ProductSize
+
+# ==============================
+#     EMPLOYEE - INSPECT RETURNED ITEM
+# ==============================
+
+from django.contrib import messages
+from django.http import HttpResponseNotFound
+
+from django.contrib import messages
+from django.http import HttpResponseNotFound
+from django.shortcuts import render, get_object_or_404, redirect
+from .models import Booking, Return
+
+from decimal import Decimal, InvalidOperation
+
+def confirm_refund(request, id):
+    booking = get_object_or_404(Booking, id=id)
+
+    # Ensure the item is marked as returned before processing a refund
+    if booking.tracking_status != 'returned':
+        return HttpResponseNotFound(f"Booking {id} has not been returned yet.")
+
+    if request.method == "POST":
+        refund_status = request.POST.get("refund_status", "").strip()
+        late_fee_input = request.POST.get("late_fee", "").strip()
+        note = request.POST.get("note", "").strip()
+
+        valid_statuses = dict(Booking.REFUND_CHOICES).keys()
+        if refund_status not in valid_statuses:
+            return HttpResponseNotFound(f"Invalid refund status for booking {id}.")
+
+        booking.refund_status = refund_status
+
+        # Update booking status based on refund status
+        if refund_status == "approved":
+            booking.status = 2  # Processing
+        elif refund_status == "processed":
+            booking.status = 3  # Completed
+        elif refund_status == "pending":
+            booking.status = 1  # Pending
+
+        # Handle late fee
+        try:
+            late_fee = Decimal(late_fee_input) if late_fee_input else Decimal("0.00")
+        except InvalidOperation:
+            return HttpResponseNotFound("Invalid late fee value.")
+        booking.late_fee = late_fee
+
+        # Save note if any
+        if note and refund_status != "rejected":
+            booking.inspection_note = note
+
+        # Create or update the Return object
+        returned_item, created = Return.objects.get_or_create(
+            booking=booking,
+            defaults={
+                'condition': "Good",
+                'late_fee': late_fee,
+                'returned_at': timezone.now(),
             }
+        )
+        if not created:
+            returned_item.late_fee = late_fee
+            returned_item.save()
 
-            # ✅ Verify payment signature
-            client.utility.verify_payment_signature(params_dict)
+        booking.save()
+        messages.success(request, f"Refund status for booking {id} updated successfully.")
+        return redirect('employee_bookings')
 
-            # ✅ Update booking status
-            booking.status = "Confirmed"
-            booking.save()
+    return render(request, 'employee_confirm_refund.html', {
+        'id': id,
+        'booking': booking
+    })
 
-            # ✅ Clear session data after successful transaction
-            del request.session["razorpay_order_id"]
-
-            messages.success(request, "Payment successful! Your booking is confirmed.")
-            #return redirect("booking_success", booking_id=booking.id)
-        
-            # 🔹 Redirect to invoice page first, then order history
-            return redirect("invoice", booking_id=booking.id)
-
-        except SignatureVerificationError:
-            messages.error(request, "Payment verification failed. Please try again.")
-            return redirect("payment_page", booking_id=booking.id)
-
-    return redirect("checkout")
 
 # ==============================
-#     REFUND
+#     ADMIN - PROCESS REFUND
 # ==============================
 
-@login_required
-def inspect_returned_item(request, booking_id):
+def process_refund(request, payment_id):
+    """Simplified: Directly mark refund as processed if approved."""
+
+    payment = get_object_or_404(Payment, id=payment_id)
+    booking = payment.booking
+
+    # Avoid duplicate processing
+    if booking.refund_status == "processed":
+        messages.warning(request, "Refund already processed.")
+        return redirect("admin_payment")
+
+    # Only allow if employee approved
+    if booking.refund_status != "approved":
+        messages.error(request, "Refund is not yet approved by employee.")
+        return redirect("admin_payment")
+
+    # Just update the status to processed
+    booking.refund_status = "processed"
+    booking.save()
+
+    messages.success(request, "Refund marked as processed.")
+    return redirect("admin_payment")
+
+
+# ==============================
+#     EMPLOYEE - UPDATE BOOKING STATUS
+# ==============================
+
+def update_booking_status(request, booking_id):
+    """Employees update booking status and track product state."""
     booking = get_object_or_404(Booking, id=booking_id)
 
     if request.method == "POST":
-        damage_fee = float(request.POST.get("damage_fee", 0))
-        late_fee = float(request.POST.get("late_fee", 0))
+        new_status = request.POST.get("status")
+        valid_statuses = ["pending", "shipped", "out for delivery", "returned", "inspected"]
 
-        booking.damage_fee = damage_fee
-        booking.late_fee = late_fee
+        if new_status not in valid_statuses:
+            messages.error(request, "Invalid status update.")
+            return redirect("employee_dashboard")
+
+        booking.status = new_status
         booking.save()
 
-        messages.success(request, "Inspection completed! Admin will process the refund.")
+        # Product tracking logic
+        if new_status == "returned":
+            # Mark rental inactive
+            Rental.objects.filter(booking=booking).update(is_active=False)
+
+            # Restock the product
+            product_size = booking.product_size
+            product_size.stock += 1
+            product_size.save()
+
+        elif new_status == "inspected":
+            # Mark the rental as completed if inspected after return
+            Rental.objects.filter(booking=booking).update(is_active=False)
+
+        messages.success(request, f"Booking status updated to {new_status}.")
         return redirect("employee_dashboard")
 
-    return render(request, "inspect_return.html", {"booking": booking})
+    return render(request, "update_booking_status.html", {"booking": booking})
 
-@login_required
-def process_refund(request, booking_id):
-    booking = get_object_or_404(Booking, id=booking_id)
-    refund_amount = booking.calculate_final_refund()
 
-    if refund_amount > 0:
-        payment = Payment.objects.get(booking=booking)
-        payment.process_refund(refund_amount)
-        booking.refund_status = "Refunded"
-    else:
-        booking.refund_status = "Deducted"
+def my_bookings(request):
+    email = request.session.get('email')  # Email stored in session
+    if not email:
+        return redirect('login')  # or your login URL name
 
-    booking.save()
-    messages.success(request, f"Refund processed: ₹{refund_amount} returned to the customer.")
-    return redirect("admin_dashboard")
+    try:
+        employee = Employee.objects.get(user__email=email)
+    except Employee.DoesNotExist:
+        return render(request, 'error.html', {'message': 'Employee not found'})
 
+    # Get all products added by this employee
+    product_ids = Product.objects.filter(added_by=employee).values_list('id', flat=True)
+
+    # Get product sizes of those products
+    size_ids = ProductSize.objects.filter(product_id__in=product_ids).values_list('id', flat=True)
+
+    # Get bookings made for those product sizes
+    bookings = Booking.objects.filter(product_size_id__in=size_ids)
+
+    # Get return info related to those bookings
+    returns = Return.objects.filter(booking__in=bookings)
+
+    context = {
+        'bookings': bookings,
+        'returns': returns,
+    }
+    return render(request, 'my_bookings.html', context)
 
 # ==============================
-#     FEEDBACK & COMPLAINTS
+#    PRODUCT REVIEW
 # ==============================
-def feedback(request):
+def review_product(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    
     if request.method == "POST":
-        user = get_object_or_404(Login, username=request.session["username"])
-        message = request.POST.get("message")
-        Feedback.objects.create(user=user, message=message)
-        messages.success(request, "Feedback submitted successfully!")
-        return redirect("customer_dashboard")
+        form = ProductReviewForm(request.POST)
+        if form.is_valid():
+            # Save the review for the product
+            review = form.save(commit=False)
+            review.product = product
+            review.user = request.user  # Assuming the user is logged in
+            review.save()
+            return redirect('product_details', product_id=product.id)
+    else:
+        form = ProductReviewForm()
 
-    return render(request, "feedback.html")
+    return render(request, 'review.html', {'form': form, 'product': product})
+  
+# ==============================
+#    ADMIN PAYMENT STATUS VIEW
+# ==============================
+def admin_payment(request):
+    payments = Payment.objects.all().order_by('-payment_date')  # ✅ Correct field name
+    return render(request, "admin_payment.html", {"payments": payments})
+
 
 # ==============================
-#    CUSTOMER COMPLAINT SUBMISSION
+#    ADMIN COMPLAINT VIEW
 # ==============================
-@login_required
+from django.utils import timezone
+# Admin View: All Complaints
+
+def admin_resolve_complaints(request):
+    """
+    Displays all complaints for the admin to review.
+    """
+    start_date = timezone.now() - timedelta(days=30)
+    complaints = Complaint.objects.filter(submitted_at__gte=start_date).order_by('-submitted_at')
+    return render(request, 'admin_resolve_complaints.html', {'complaints': complaints})
+
+
+# -------------------------------
+# Admin View: Reply to Complaint
+# -------------------------------
+def reply_user_complaint(request, complaint_id):
+    """
+    Admin replies to a complaint and marks it as Resolved.
+    """
+    complaint = get_object_or_404(Complaint, id=complaint_id)
+
+    if request.method == "POST":
+        response_text = request.POST.get("response")
+        if response_text:
+            complaint.status = 1  # Resolved
+            complaint.resolved_at = timezone.now()
+            complaint.save()
+            # You may store the response in another model or send notification if needed
+            messages.success(request, f"Replied to complaint #{complaint.id} successfully!")
+        else:
+            messages.error(request, "Response cannot be empty.")
+
+    return redirect("admin_resolve_complaints")
+
+
+# -------------------------------
+# Admin View: Mark as Resolved Without Reply
+# -------------------------------
+def resolve_complaints(request, complaint_id):
+    """
+    Marks complaint as resolved without an explicit reply.
+    """
+    complaint = get_object_or_404(Complaint, id=complaint_id)
+    complaint.status = 1  # Resolved
+    complaint.resolved_at = timezone.now()
+    complaint.save()
+    messages.success(request, f"Complaint #{complaint_id} has been marked as resolved.")
+    return redirect('admin_resolve_complaints')
+
+
+# ==============================
+#    EMPLOYEE BOOKING VIEW
+# ==============================
+
+def employee_bookings(request):
+    """Display bookings only for products added by the logged-in employee."""
+    user_id = request.session.get("id")  # Corrected from 'user_type' to 'id'
+    try:
+        employee = Employee.objects.get(user=user_id)
+    except Employee.DoesNotExist:
+        messages.error(request, "No employee profile found.")
+        return redirect("login")  
+
+    # Fetch bookings where the product's added_by is the current employee
+    bookings = Booking.objects.filter(
+        product_size__product__added_by=employee,
+        is_active=True
+    ).select_related('product_size__product').order_by("-booked_at")
+
+    return render(request, "employee_bookings.html", {"bookings": bookings})
+
+
+def employee_update_booking(request, booking_id):
+    """Allow updating tracking only for employee's own added product bookings."""
+    user_id = request.session.get("id")
+    employee = get_object_or_404(Employee, user=user_id)
+
+    # Booking must be for a product added by this employee
+    booking = get_object_or_404(
+        Booking,
+        id=booking_id,
+        product_size__product__added_by=employee  # Ensures ownership
+    )
+
+    if request.method == 'POST':
+        new_status = request.POST.get('tracking_status')  # string value
+        if new_status in dict(Booking.TRACKING_CHOICES).keys():
+            booking.tracking_status = new_status
+            booking.save()
+            messages.success(request, "Booking status updated successfully.")
+            return redirect('employee_bookings')
+        else:
+            messages.error(request, "Invalid tracking status selected.")
+
+    return render(request, 'employee_update_booking.html', {'booking': booking})
+
+# ==============================
+#    CUSTOMER COMPLAINTS
+# ==============================
 def complaint(request):
-    """Allow customers to submit complaints."""
-    username = request.session.get("username")
-
-    if not username:
-        messages.error(request, "You need to log in to submit a complaint.")
+    if request.session.get("user_type") != "1":
+        messages.error(request, "Please login as a customer to submit a complaint.")
         return redirect("login")
 
-    user = get_object_or_404(Login, username=username)
+    email = request.session.get("email")
+    login_instance = get_object_or_404(Login, email=email)
 
     if request.method == "POST":
-        complaint_text = request.POST.get("complaint", "").strip()
+        message = request.POST.get("complaint", "").strip()  # fixed field name
 
-        if not complaint_text:
-            messages.error(request, "Complaint cannot be empty.")
-            return redirect("customer_dashboard")
+        if not message:
+            messages.error(request, "Please enter a complaint message.")
+            return redirect("complaint")
 
-        Complaint.objects.create(customer=user, complaint_text=complaint_text, status="Pending")  # ✅ Ensure complaint is "Pending"
-        messages.success(request, "Complaint submitted successfully!")
+        Complaint.objects.create(user=login_instance, message=message)
+        messages.success(request, "Complaint submitted successfully.")
         return redirect("customer_dashboard")
 
     return render(request, "complaint.html")
 
 
+
+def complaints(request):
+    if request.session.get("user_type") != "1":
+        messages.error(request, "Please login as a customer to view complaints.")
+        return redirect("login")
+    
+    email = request.session.get("email")
+    login_instance = get_object_or_404(Login, email=email)
+    
+    complaints = Complaint.objects.filter(user=login_instance).order_by('-submitted_at')
+    
+    return render(request, 'complaint.html', {'complaint': complaint})
+
+
 # ==============================
-#    EMPLOYEE VIEW OF COMPLAINTS
+#    EMPLOYEE COMPLAINT VIEW
 # ==============================
-@login_required
+
 def employee_complaints(request):
-    """Employees can view all pending complaints."""
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied: Only employees can manage customer complaints.")
+        return redirect("login")
+    
+    # Get employee details
+    email = request.session.get("email")
+    try:
+        login_instance = Login.objects.get(email=email)
+        employee = Employee.objects.get(user=login_instance)
+        
+        # Only managers (position 1) should be able to manage complaints
+        if employee.position != "1":  # Manager
+            messages.error(request, "Only managers can handle customer complaints.")
+            return redirect("employee_dashboard")
+            
+    except (Login.DoesNotExist, Employee.DoesNotExist):
+        messages.error(request, "Employee profile not found.")
+        return redirect("login")
+    
+    # Get filter parameter
+    filter_by = request.GET.get('filter', 'pending')
+    
+    if filter_by == 'pending':
+        complaints = Complaint.objects.filter(status=0)  # Pending
+    elif filter_by == 'resolved':
+        complaints = Complaint.objects.filter(status=1)  # Resolved
+    elif filter_by == 'dismissed':
+        complaints = Complaint.objects.filter(status=2)  # Dismissed
+    else:
+        complaints = Complaint.objects.all()
+    
+    # Order by submission date
+    complaints = complaints.order_by('-submitted_at')
+    
+    return render(request, 'employee_complaints.html', {
+        'complaints': complaints,
+        'filter': filter_by,
+        'employee': employee
+    })
 
-    # ✅ Ensure only employees can access this view
-    if user.types != "employee":
-        messages.error(request, "Access denied.")
-        return redirect("customer_dashboard")
+def employee_resolve_complaint(request, complaint_id):
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied: Only employees can resolve complaints.")
+        return redirect("login")
+    
+    # Get employee details
+    email = request.session.get("email")
+    try:
+        login_instance = Login.objects.get(email=email)
+        employee = Employee.objects.get(user=login_instance)
 
-    complaints = Complaint.objects.filter(status="Pending").order_by("-created_at")
-    return render(request, "employee_complaints.html", {"complaints": complaints})
-
-
-# ==============================
-#    EMPLOYEE RESOLVES COMPLAINT
-# ==============================
-@login_required
-def resolve_complaint(request, complaint_id):
-    """Allow an employee to resolve a complaint with an optional reply."""
-    username = request.session.get("username")
-    user = get_object_or_404(Login, username=username)
-
-    # ✅ Ensure only employees can resolve complaints
-    if user.types != "employee":
-        messages.error(request, "Access denied.")
-        return redirect("customer_dashboard")
-
+        if employee.position != "1":  # Only Manager
+            messages.error(request, "Only managers can resolve customer complaints.")
+            return redirect("employee_dashboard")
+            
+    except (Login.DoesNotExist, Employee.DoesNotExist):
+        messages.error(request, "Employee profile not found.")
+        return redirect("login")
+    
     complaint = get_object_or_404(Complaint, id=complaint_id)
 
     if request.method == "POST":
-        reply_text = request.POST.get("reply", "").strip()
+        # No resolution message since field is removed
+        complaint.status = 1  # Mark as Resolved
+        complaint.resolved_at = now()
+        complaint.save()
 
-        if complaint.status == "Resolved":
-            messages.warning(request, "This complaint is already resolved.")
-        else:
-            complaint.status = "Resolved"
-            complaint.reply = reply_text if reply_text else "Resolved without a reply"
-            complaint.save()
-            messages.success(request, "Complaint resolved successfully!")
+        messages.success(request, "Complaint has been resolved successfully.")
 
-        return redirect("employee_complaints")
+    return redirect('employee_complaints')
 
-    return render(request, "resolve_complaints.html", {"complaint": complaint})
+def employee_view_complaint(request, complaint_id):
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied: Only employees can view complaint details.")
+        return redirect("login")
+    
+    # Get employee details
+    email = request.session.get("email")
+    try:
+        login_instance = Login.objects.get(email=email)
+        employee = Employee.objects.get(user=login_instance)
+        
+        # Only managers (position 1) should be able to view complaints
+        if employee.position != "1":  # Manager
+            messages.error(request, "Only managers can view customer complaints.")
+            return redirect("employee_dashboard")
+            
+    except (Login.DoesNotExist, Employee.DoesNotExist):
+        messages.error(request, "Employee profile not found.")
+        return redirect("login")
+    
+    complaint = get_object_or_404(Complaint, id=complaint_id)
+    
+    # Get related booking information if available
+    booking_info = None
+    if complaint.booking:
+        booking_info = {
+            'id': complaint.booking.id,
+            'date': complaint.booking.booked_at,
+            'status': complaint.booking.get_status_display(),
+            'rentals': Rental.objects.filter(booking=complaint.booking)
+        }
+    
+    context = {
+        'complaint': complaint,
+        'booking_info': booking_info,
+        'employee': employee
+    }
+    
+    return render(request, 'employee_complaint.html', context)
+
+# ==============================
+#    FEEDBACK
+# ==============================
+
+def submit_feedback(request, product_id):
+    if request.method == "POST":
+        email = request.session.get("email")  # Get user email from session
+        if not email:
+            return redirect("login_page")
+
+        user = Login.objects.filter(email=email).first()  # Get the user
+        product = get_object_or_404(Product, id=product_id)
+
+        rating = request.POST.get("rating")
+        message = request.POST.get("review_text", "").strip()
+
+        if rating and message and rating.isdigit():
+            Feedback.objects.create(user=user, product=product, rating=int(rating), message=message)
+
+        return redirect("product_details", product_id=product.id)
+
+    return redirect("product_details", product_id=product_id)
+
+
+# ==============================
+#    ADMIN REPORT VIEW
+# ==============================
+
+def admin_reports_list(request):
+    if request.session.get("user_type") != "0":  # Ensure only admins can access
+        messages.error(request, "Access Denied: Only admins can view reports.")
+        return redirect("login")
+
+    # Get all reports with status 'Pending'
+    pending_reports = Report.objects.filter(status='Pending')
+
+    return render(request, 'admin_reports_list.html', {
+        'pending_reports': pending_reports
+    })
+
+def verify_or_reject_report(request, report_id):
+    # Check if the user is authenticated and is an admin
+    if not request.user.is_authenticated or not request.user.is_staff:
+        messages.error(request, "Access Denied: Only admins can verify/reject reports.")
+        return redirect("login")  # Redirect to login page if the user is not an admin
+    
+    # Get the report to verify or reject
+    report = get_object_or_404(Report, id=report_id)
+
+    if request.method == "POST":
+        action = request.POST.get('action')
+        if action == "verify":
+            report.status = 'Verified'
+            report.save()
+            messages.success(request, "Report has been verified successfully.")
+        elif action == "reject":
+            report.status = 'Rejected'
+            report.save()
+            messages.error(request, "Report has been rejected.")
+        
+        return redirect("admin_reports_list")  # Redirect to the list after verification or rejection
+
+    return redirect("admin_reports_list")  # Redirect to the list if method is not POST
+
+
+def view_report_detail(request, report_id):
+    if request.session.get("user_type") != "0":
+        messages.error(request, "Access Denied: Only admins can view reports.")
+        return redirect("login")
+
+    report = get_object_or_404(Report, id=report_id)
+
+    return render(request, 'admin_report_detail.html', {
+        'report': report
+    })
+
+def admin_report_detail(request, report_id):
+    # Fetching the report
+    report = get_object_or_404(Report, id=report_id)
+
+    # Rental summary by product for the report's employee and date
+    report_date = report.created_at.date()
+
+    # Aggregating rental data based on employee and date
+    report_data = Booking.objects.filter(
+        employee=report.employee,
+        rented_at__date=report_date
+    ).values(
+        'product_size__product__name'
+    ).annotate(
+        rent_count=Count('id'),
+        total_deposit=Sum('security_deposit'),
+        total_late_fee=Sum('return__late_fee')
+    )
+
+    # Collecting the status of the report
+    # You can also consider adding any extra details based on the report model
+    status = report.status
+
+    context = {
+        'report': report,
+        'report_data': report_data,
+        'status': status,
+    }
+
+    # Rendering the admin report details page with relevant data
+    return render(request, 'admin_report_detail.html', context)
+
+
+# ==============================
+#    EMPLOYEE REPORT 
+# ==============================
+
+
+def employee_report(request):
+    if request.session.get("user_type") != "2":
+        messages.error(request, "Access Denied: Only employees can access reports.")
+        return redirect("login")
+
+    email = request.session.get("email")
+    try:
+        login_instance = Login.objects.get(email=email)
+        employee = Employee.objects.get(user=login_instance)
+    except (Login.DoesNotExist, Employee.DoesNotExist):
+        messages.error(request, "Employee profile not found.")
+        return redirect("login")
+
+    # Get all products added by this employee
+    employee_products = Product.objects.filter(added_by=employee)
+
+    # Join with Booking and annotate rental stats
+    report_data = Booking.objects.filter(
+        product_size__product__in=employee_products
+    ).values(
+        'product_size__product__name'
+    ).annotate(
+        rent_count=Count('id'),
+        total_deposit=Sum('security_deposit'),
+        total_late_fee=Sum('return__late_fee')
+    ).order_by('-rent_count')
+
+    return render(request, 'employee_report.html', {
+        'report_data': report_data
+    })
+
+
+def submit_report(request):
+    if request.method == 'POST':
+        # Ensure the user is an employee
+        if request.session.get("user_type") != "2":
+            messages.error(request, "Access Denied: Only employees can submit reports.")
+            return redirect("login")
+
+        email = request.session.get("email")
+        try:
+            login_instance = Login.objects.get(email=email)
+            employee = Employee.objects.get(user=login_instance)
+        except (Login.DoesNotExist, Employee.DoesNotExist):
+            messages.error(request, "Employee profile not found.")
+            return redirect("login")
+
+        # Create the report entry with initial status as 'Pending'
+        report = Report.objects.create(
+            employee=employee,
+            title=f"Daily Report for {timezone.now().date()}",
+            status="Pending",  # Initially, the status is 'Pending'
+        )
+
+        # Generate daily activity data for the report (items added, bookings made, and description)
+        report.generate_daily_activity_data()
+
+        messages.success(request, "Report submitted for admin verification.")
+        return redirect("employee_rented_products")  # Redirect back to the report page
+
+    return redirect("employee_report")  # If not POST, just redirect back
+
+# ==============================
+#    CUSTOMER PROFILE MANAGEMENT 
+# ==============================
+
+def profile_management(request):
+    u = request.session.get("id")
+
+    try:
+        user_profile = UserProfile.objects.get(id=u)
+    except UserProfile.DoesNotExist:
+        user_profile = None
+
+    if request.method == 'POST':
+        # Update Profile Picture Only
+        if 'profile_picture' in request.FILES:
+            profile_picture = request.FILES.get('profile_picture')
+            if user_profile:
+                user_profile.profile_picture = profile_picture
+                user_profile.save()
+            else:
+                UserProfile.objects.create(
+                    user=request.user,
+                    profile_picture=profile_picture,
+                )
+
+        # Update Profile Details (Full Name, Phone, Email)
+        elif all(field in request.POST for field in ['full_name', 'phone', 'email']):
+            full_name = request.POST.get('full_name')
+            phone = request.POST.get('phone')
+            email = request.POST.get('email')
+
+            if user_profile:
+                user_profile.full_name = full_name
+                user_profile.phone = phone
+                user_profile.save()
+            else:
+                user_profile = UserProfile.objects.create(
+                    user=request.user,
+                    full_name=full_name,
+                    phone=phone
+                )
+            request.user.email = email
+            request.user.save()
+
+        # Password Update
+        elif 'new_password' in request.POST:
+            new_password = request.POST.get('new_password')
+            confirm_password = request.POST.get('confirm_password')
+            current_password = request.POST.get('current_password')
+
+            if new_password == confirm_password:
+                request.user.password = new_password  # Still plain text (not secure!)
+                request.user.save()
+            else:
+                messages.error(request, "Passwords do not match.")
+
+        return redirect('profile_management')
+
+    return render(request, 'profile_management.html', {
+        'user_profile': user_profile,
+        'user': request.user
+    })
 
 # ==============================
 #     RENTAL HISTORY
 # ==============================
 
 def rental_history(request):
-    if "username" not in request.session:
-        messages.error(request, "You must be logged in to view your rental history.")
-        return redirect("login")
+    # Get all bookings for the logged-in user (past and current)
+    u=request.session.get("id")
+
+    bookings = Booking.objects.filter(customer=u).order_by('-booked_at')
     
-    user = get_object_or_404(Login, username=request.session["username"])
-    rentals = Booking.objects.filter(user=user).order_by("-rental_start_date")
-    return render(request, "rental_history.html", {"rentals": rentals})
+    # Optionally, filter out only completed rentals or other criteria
+    completed_rentals = Rental.objects.filter(customer=u, is_active=False)
+    
+    return render(request, 'rental_history.html', {
+        'bookings': bookings,
+        'completed_rentals': completed_rentals,
+    })
+
+
+def cancel_booking(request, booking_id):
+    if request.method == "POST":
+        user_id = request.session.get("id")
+        booking = get_object_or_404(Booking, id=booking_id, customer_id=user_id)
+
+        # Only cancel if it's still pending and not returned
+        if booking.status == 1 and booking.tracking_status.lower() != "returned":
+            booking.status = 4  # Cancelled
+            booking.is_active = False
+            booking.save()
+            messages.success(request, "Booking has been cancelled successfully.")
+        else:
+            messages.warning(request, "This booking cannot be cancelled.")
+    
+    return redirect("rental_history")
+
+def update_tracking_status(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id)
+
+    if request.method == "POST":
+        new_status = request.POST.get("tracking_status")
+        booking.tracking_status = new_status
+
+        # Get the currently logged-in employee
+        employee = Employee.objects.filter(user=request.user).first()
+        if employee:
+            booking.tracking_updated_by = employee
+        
+        booking.save()
+        messages.success(request, "Tracking status updated.")
+        return redirect('employee_booking')  # adjust route as needed
+
+    return render(request, 'update_tracking.html', {'booking': booking})
+
+
 
 # ==============================
 #     CHATBOT ASSISTANCE
 # ==============================
-
-# Predefined responses
-RESPONSES = {
-    "How can I rent a product?": "Go to the product page, select the quantity and duration, and click rent.",
-    "How do I make a payment?": "After booking, go to the payment page and follow the instructions.",
-    "What if my payment fails?": "Try again or contact support for assistance.",
-    "How can I return my rental?": "Schedule a return via your order history page.",
-    "Where is my order?": "Track your order status in the 'My Orders' section.",
+from django.views.decorators.http import require_http_methods
+import json
+# Default predefined answers
+# Default predefined answers with more variations
+DEFAULT_RESPONSES = {
+    "rental policy": "You can rent items for up to 7 days. Late returns may incur additional charges.",
+    "available sizes": "Our sizes range from XS to XXL. Check the size chart for details.",
+    "hi": "Hello! 😊 How can I assist you with your wardrobe rental today?",
+    "how to rent": "To rent an item, browse the catalog, select a size, and proceed to checkout.",
+    "track order": "You can track your order under 'My Bookings'.",
+    "refund process": "Refunds are processed after inspection and admin confirmation.",
+    "recommend accessories": "Recommended accessories are shown on the product detail page.",
+    "feedback": "You can submit feedback under 'My Bookings' after your rental is complete.",
+    "help": "You can ask about rentals, returns, payments, booking status, or product availability.",
 }
 
-def chatbot(request):
-    if request.method == "POST":
-        user_query = request.POST.get("user_query", "").strip()
 
-        # Check if question already exists in the database
-        chat_entry, created = ChatbotResponse.objects.get_or_create(question=user_query)
+@require_http_methods(["GET", "POST"])
+def chatbot_view(request):
+    if request.method == "POST":
+        user_query = request.POST.get("user_query", "").strip().lower()
+
+        if not user_query:
+            return JsonResponse({"response": "Please enter a valid question.", "recommendations": []})
+
+        # Save or fetch query from DB
+        chat_entry, created = ChatbotQuery.objects.get_or_create(user=request.user if request.user.is_authenticated else None, query=user_query)
 
         if not created and chat_entry.response:
             response = chat_entry.response
         else:
-            # Provide default response or escalate
-            response = RESPONSES.get(user_query, "I'm sorry, I don't understand that question. An admin will review it.")
+            response = DEFAULT_RESPONSES.get(user_query, "I'm sorry, I don't have an answer for that yet.")
             chat_entry.response = response
-
-            # Mark as escalated if response is generic
-            if response.startswith("I'm sorry"):
-                chat_entry.is_escalated = True
-
             chat_entry.save()
 
-        return JsonResponse({"response": response})
-    
+        # Fetch related product recommendations
+        recommendations = []
+        matched_products = Product.objects.filter(name__icontains=user_query)
+
+        for product in matched_products:
+            recs = ProductRecommendation.objects.filter(product=product)
+            recommendations.extend([r.recommended_product.name for r in recs])
+
+        return JsonResponse({"response": response, "recommendations": recommendations})
+
     return render(request, "chatbot.html")
 
 
+@require_http_methods(["POST"])
+def chatbot_response_json(request):
+    try:
+        data = json.loads(request.body)
+        user_message = data.get("message", "").strip().lower()
+
+        if not user_message:
+            return JsonResponse({"response": "Please type something to get started."})
+
+        response = DEFAULT_RESPONSES.get(user_message, "I'm here to help! Try asking about 'how to rent' or 'track order'.")
+
+        return JsonResponse({"response": response})
+
+    except Exception as e:
+        return JsonResponse({"response": "Oops, something went wrong. Please try again."})
+
+
+def get_previous_queries(request):
+    if request.user.is_authenticated:
+        queries = ChatbotQuery.objects.filter(user=request.user).order_by('-timestamp').values_list('query', flat=True).distinct()[:10]
+    else:
+        queries = ChatbotQuery.objects.filter(user=None).order_by('-timestamp').values_list('query', flat=True).distinct()[:10]
+
+    return JsonResponse({"queries": list(queries)})
 
 # ==============================
-#     REPORTS
+# PRODUCT RECOMMENDATION
 # ==============================
-def view_reports(request):
-    return render(request, "view_reports")
 
-@login_required
-def financial_reports(request):
-    reports = SalesReport.objects.all()
-    return render(request, "financial_reports.html", {"reports": reports})
+def add_recommendations(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    all_products = Product.objects.exclude(id=product_id)  # exclude main product
+    recommendation_types = ProductRecommendation.RECOMMENDATION_TYPE_CHOICES
+    selected_type = request.GET.get('recommendation_type', 'accessory')  # default type
 
+    # Get already recommended products for the selected type
+    existing_recommendations = ProductRecommendation.objects.filter(
+        product=product,
+        recommendation_type=selected_type
+    ).values_list('recommended_product__id', flat=True)
+
+    if request.method == 'POST':
+        selected_ids = request.POST.getlist('recommended_products')
+        selected_type = request.POST.get('recommendation_type', 'accessory')
+
+        # Delete old recommendations of this type
+        ProductRecommendation.objects.filter(product=product, recommendation_type=selected_type).delete()
+
+        for pid in selected_ids:
+            recommended = get_object_or_404(Product, id=pid)
+            ProductRecommendation.objects.create(
+                product=product,
+                recommended_product=recommended,
+                recommendation_type=selected_type
+            )
+
+        messages.success(request, "Recommendations updated successfully.")
+        return redirect('admin_manage_inventory')
+
+    return render(request, 'admin_add_recommendation.html', {
+        'product': product,
+        'all_products': all_products,
+        'recommendation_types': recommendation_types,
+        'selected_type': selected_type,
+        'existing_ids': list(existing_recommendations),  # send to template
+    })
+
+def get_recommendations(request, product_id):
+    """
+    Retrieves recommended products for a given product.
+    """
+    product = get_object_or_404(Product, id=product_id)
+    recommendations = ProductRecommendation.objects.filter(product=product).select_related("recommended_product")
+
+    formatted_data = {}
+    for rec in recommendations:
+        rec_type = rec.recommendation_type
+        if rec_type not in formatted_data:
+            formatted_data[rec_type] = []
+        formatted_data[rec_type].append({
+            "id": rec.recommended_product.id,
+            "name": rec.recommended_product.name
+        })
+
+    return JsonResponse(formatted_data, safe=False)
 # ==============================
 #     OTHERS
 # ==============================
-def about(request):
-    return render(request, "about.html")
+def sustainability_impact(request):
+    return render(request, "sustainability_impact.html")
 
-def services(request):
-    return render(request, "services.html")
-
-
-# ==============================
-#     RENTAL HISTROY
-# ==============================
-
-@login_required
-def rental_history(request):
-    rentals = Rental.objects.filter(user=request.user)
-    return render(request, 'rental_history.html', {'rentals': rentals})
-
-# ==============================
-#     PROFILE MANAGEMENT
-# ==============================
-
-@login_required
-def profile_management(request):
-    user_profile = get_object_or_404(UserProfile, username=request.session.get('user'))  # Fetch UserProfile
-    
-    if request.method == 'POST':
-        form = ProfileUpdateForm(request.POST, request.FILES, instance=user_profile)
-        if form.is_valid():
-            form.save()
-            return redirect('profile_management')
-    else:
-        form = ProfileUpdateForm(instance=user_profile)
-
-    return render(request, 'profile_management.html', {'form': form, 'user_profile': user_profile})
+def support_center(request):
+    return render(request, "support_center.html")
 
 
-@login_required
-def edit_profile(request):
-    username = request.session.get('user')
-    user_profile = get_object_or_404(UserProfile, username=username)
-
-    if request.method == "POST":
-        full_name = request.POST.get('full_name', '')
-        email = request.POST.get('email', '')
-        phone = request.POST.get('phone', '')
-
-        user_profile.full_name = full_name  # Updating full_name instead of name
-        user_profile.email = email
-        user_profile.phone = phone
-        user_profile.save()
-
-        messages.success(request, "Profile updated successfully!")
-        return redirect('customer_dashboard')
-
-    return render(request, 'edit_profile.html', {'user_profile': user_profile})
-
-
-@login_required
-def change_password(request):
-    user_profile = get_object_or_404(UserProfile, user=request.user)  # Get user profile
-
-    if request.method == 'POST':
-        current_password = request.POST.get('current_password', '')
-        new_password = request.POST.get('new_password', '')
-        confirm_password = request.POST.get('confirm_password', '')
-
-        if new_password != confirm_password:
-            messages.error(request, "New passwords do not match!")
-            return redirect('change_password')
-
-        user = user_profile.user  # Get the associated User model instance
-        if not user.check_password(current_password):
-            messages.error(request, "Current password is incorrect!")
-            return redirect('change_password')
-
-        user.set_password(new_password)
-        user.save()
-        update_session_auth_hash(request, user)  # Keeps the user logged in
-        messages.success(request, "Password updated successfully!")
-        return redirect('customer_dashboard')
-
-    return render(request, 'change_password.html', {'user_profile': user_profile})
-
-
-def trending_products(request):
-    return render(request, "trending_products.html")
-
-
-#   ADMIN RESOLVE COMPLAINT
-def admin_resolve_complaints(request):
-    complaints = Complaint.objects.all()
-    return render(request, 'admin_resolve_complaints.html', {'complaints': complaints})
-
-def reply_complaint(request, complaint_id):
-    complaint = get_object_or_404(Complaint, id=complaint_id)
-    if request.method == "POST":
-        complaint.reply = request.POST.get("reply")  # Assuming a reply field
-        complaint.save()
-        return redirect("admin_resolve_complaints")  
-    return render(request, "reply_complaint.html", {"complaint": complaint})
-
-def resolve_complaints(request, complaint_id):
-    complaint = get_object_or_404(Complaint, id=complaint_id)
-    if request.method == 'POST':
-        complaint.status = "Resolved"
-        complaint.save()
-        return redirect('admin_resolve_complaints')  # Redirect back to admin page
-    return render(request, 'resolve_complaints.html', {'complaint': complaint})
-
-
-# ==============================
-#     REPORT
-# ==============================
-
-# 📌 Get all reports
-def view_reports(request):
-    reports = SalesReport.objects.all()  # Fetch all reports
-    return render(request, 'view_reports.html', {'reports': reports})
-
-# 📌 Approve or Reject a Report
-@csrf_exempt
-def update_report_status(request, report_id):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            status = data.get("status")
-
-            if status not in ["approved", "rejected"]:
-                return JsonResponse({'error': 'Invalid status'}, status=400)
-
-            report = SalesReport.objects.get(id=report_id)
-            report.report_status = status
-            report.save()
-
-            return JsonResponse({'message': f'Report {status} successfully'})
-        except SalesReport.DoesNotExist:
-            return JsonResponse({'error': 'Report not found'}, status=404)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)

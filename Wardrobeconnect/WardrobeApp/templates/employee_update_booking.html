@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Update Booking Tracking Status</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 60px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        select, input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        .btn-submit {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .btn-submit:hover {
+            background-color: #2980b9;
+        }
+        .back-link {
+            display: inline-block;
+            text-decoration: none;
+            margin-top: 10px;
+            color: #34495e;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Update Tracking Status</h2>
+        <form method="POST">
+            {% csrf_token %}
+            <label for="tracking_status">Tracking Status</label>
+            <select name="tracking_status" id="tracking_status" required>
+                <option value="placed" {% if booking.tracking_status == "placed" %}selected{% endif %}>Order Placed</option>
+                <option value="processing" {% if booking.tracking_status == "processing" %}selected{% endif %}>Processing Started</option>
+                <option value="packed" {% if booking.tracking_status == "packed" %}selected{% endif %}>Packed</option>
+                <option value="ready_for_pickup" {% if booking.tracking_status == "ready_for_pickup" %}selected{% endif %}>Ready for Pickup</option>
+                <option value="delivered" {% if booking.tracking_status == "delivered" %}selected{% endif %}>Handed Over to Customer</option>
+                <option value="returned" {% if booking.tracking_status == "returned" %}selected{% endif %}>Returned to Store</option>
+               
+            </select>
+            <input type="submit" value="✅ Update Status" class="btn-submit">
+        </form>
+        <a href="javascript:history.back()" class="back-link">← Back to Dashboard</a>
+    </div>
+</body>
+</html>

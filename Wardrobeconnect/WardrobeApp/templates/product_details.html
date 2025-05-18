@@ -1,88 +1,267 @@
-{% extends 'base.html' %}
+{% extends 'baseUser.html' %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row g-5 align-items-center">
-        <!-- Product Image -->
-        <div class="col-md-6 text-center">
-            <div class="product-image-container">
-                <img src="{{ product.image.url }}" class="img-fluid rounded shadow-lg product-image" alt="{{ product.name }}">
+<div class="container-fluid px-4 py-5">
+    <div class="row g-5">
+        <!-- Product Image Section -->
+        <div class="col-md-6">
+            <div class="product-gallery position-sticky top-0">
+                <div class="main-image-container mb-4">
+                    <img src="{{ product.image.url }}" 
+                         class="img-fluid rounded-4 main-product-image" 
+                         alt="{{ product.name }}"
+                         data-bs-toggle="modal" 
+                         data-bs-target="#imageZoomModal">
+                </div>
+
+                <!-- Additional Product Images (if available) -->
+                <div class="additional-images d-flex justify-content-center gap-3 mb-3">
+                    {% for image in product.additional_images.all %}
+                    <img src="{{ image.url }}" 
+                         class="img-thumbnail rounded-3 additional-thumb" 
+                         alt="Product Additional Image"
+                         style="width: 80px; height: 80px; object-fit: cover;">
+                    {% endfor %}
+                </div>
             </div>
         </div>
 
-        <!-- Product Details -->
+        <!-- Product Details Section -->
         <div class="col-md-6">
-            <h2 class="fw-bold display-6">{{ product.name }}</h2>
+            <div class="product-info">
+                <!-- Product Title & Rating -->
+                <div class="d-flex justify-content-between align-items-start mb-4">
+                    <h1 class="display-5 fw-bold text-dark">{{ product.name }}</h1>
+                    <div class="product-rating text-warning">
+                        <span class="h4">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= product.average_rating|floatformat:0 %}
+                                    ★
+                                {% else %}
+                                    ☆
+                                {% endif %}
+                            {% endfor %}
+                        </span>
+                        <p class="text-muted small">({{ product.feedback_set.count }} reviews)</p>
+                    </div>
+                </div>
 
-            <!-- Star Rating & Category -->
-            <p class="text-muted mb-2">
-                <span class="fw-bold text-warning">⭐ 4.5 (120 reviews)</span>
-                <br>
-                Category: <span class="badge bg-primary">{{ product.category }}</span>
-            </p>
+                <!-- Price & Category -->
+                <div class="mb-4">
+                    <h2 class="text-success fw-bold mb-2">${{ product.price|floatformat:2 }}</h2>
+                    <span class="badge bg-primary rounded-pill">{{ product.total_stock }}</span>
+                </div>
 
-            <h3 class="text-success fw-bold mb-3">${{ product.price|floatformat:2 }}</h3>
+                <!-- Product Description -->
+                <p class="lead text-secondary mb-4">{{ product.description }}</p>
 
-            <p class="text-secondary lead">{{ product.description }}</p>
+                <!-- Size Selection -->
+                <div class="size-selection bg-light p-3 rounded-3 mb-4">
+                    <label for="product_size" class="form-label">Select Size</label>
+                    <select id="product_size" class="form-select">
+                        <option value="">-- Select Size --</option>
+                        {% for size in available_sizes %}
+                            <option value="{{ size.id }}">{{ size.get_size_display }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <!-- Rental Date Selection -->
-            <div class="mb-3">
-                <label for="rental_start_date" class="fw-bold">Start Date:</label>
-                <input type="date" id="rental_start_date" name="rental_start_date" class="form-control border-dark">
-            </div>
+                <!-- Rental Date Selection -->
+                <div class="rental-selection bg-light p-3 rounded-3 mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="rental_start_date" class="form-label">Start Date</label>
+                            <input type="date" id="rental_start_date" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="rental_end_date" class="form-label">End Date</label>
+                            <input type="date" id="rental_end_date" class="form-control">
+                        </div>
+                    </div>
+                    <button id="checkAvailabilityBtn" class="btn btn-info w-100 mt-3">Check Availability</button>
+                    <div id="availabilityResult" class="text-center mt-2"></div>
+                </div>
 
-            <div class="mb-3">
-                <label for="rental_end_date" class="fw-bold">End Date:</label>
-                <input type="date" id="rental_end_date" name="rental_end_date" class="form-control border-dark">
-            </div>
+                <!-- Quantity & Cart Actions -->
+                <div class="product-actions">
+                    <div class="quantity-selector d-flex align-items-center mb-3">
+                        <label class="me-3 fw-bold">Quantity:</label>
+                        <div class="input-group w-50">
+                            <button class="btn btn-outline-secondary" type="button" onclick="decreaseQuantity()">-</button>
+                            <input type="number" id="quantity" name="quantity" value="1" min="1" class="form-control text-center">
+                            <button class="btn btn-outline-secondary" type="button" onclick="increaseQuantity()">+</button>
+                        </div>
+                    </div>
 
-            <!-- Check Availability Button -->
-            <button type="button" id="checkAvailabilityBtn" class="btn btn-lg btn-info w-100 fw-bold shadow">
-                🔍 Check Availability
-            </button>
+                    <div class="d-grid gap-3">
+                        <!-- Add to Cart Form -->
+                        <form method="POST" action="{% url 'add_to_cart' product.id 0 %}" id="add-to-cart-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="size_id" id="selected_size">
+                            <input type="hidden" name="quantity" id="selected_quantity">
+                            <button type="submit" class="btn btn-primary btn-lg">Add to Cart</button>
+                        </form>
 
-            <div id="availabilityResult" class="mt-3 text-center fw-bold"></div>
-
-            <!-- Quantity Selector -->
-            <div class="d-flex align-items-center my-4">
-                <label for="quantity" class="fw-bold me-3">Quantity:</label>
-                <div class="input-group w-50">
-                    <button class="btn btn-outline-dark" type="button" onclick="decreaseQuantity()">-</button>
-                    <input type="number" name="quantity" id="quantity" value="1" min="1" class="form-control text-center border-dark">
-                    <button class="btn btn-outline-dark" type="button" onclick="increaseQuantity()">+</button>
+                        <!-- Add to Wishlist -->
+                        <a href="{% url 'add_to_wishlist' product.id %}" class="btn btn-outline-danger btn-wishlist">Wishlist</a>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Action Buttons -->
-            <div class="d-grid gap-3">
-                <form action="{% url 'add_to_cart' product.id %}" method="POST">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-lg btn-success w-100 fw-bold shadow">
-                        🛒 Add to Cart
-                    </button>
-                </form>
-
-                <form action="{% url 'add_to_wishlist' product.id %}" method="POST">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-lg btn-outline-warning w-100 fw-bold shadow">⭐ Add to Wishlist</button>
-                </form>
+    <!-- Updated Product Recommendations Section -->
+    <div class="recommendations bg-light p-4 rounded-4 mt-5 shadow-sm">
+        <h4 class="text-center mb-4">Recommended Products</h4>
+        <div class="row row-cols-1 row-cols-md-4 g-4">
+            {% for recommended in recommended_products %}
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <img src="{{ recommended.image.url }}" class="card-img-top" alt="{{ recommended.name }}">
+                    <div class="card-body text-center">
+                        <h6 class="card-title fw-bold">{{ recommended.name }}</h6>
+                        <p class="text-success fw-semibold">${{ recommended.price|floatformat:2 }}</p>
+                        <a href="{% url 'product_details' recommended.id %}" class="btn btn-sm btn-outline-primary">
+                            Details
+                        </a>
+                    </div>
+                </div>
             </div>
+            {% empty %}
+            <div class="col text-center">
+                <p class="text-muted">No recommended products available at the moment.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
 
-            <!-- Navigation Buttons -->
-            <div class="mt-4 d-flex justify-content-between">
-                <a href="{% url 'search' %}" class="btn btn-outline-dark fw-bold px-4 shadow-sm">
-                    ← Back to Products
-                </a>
-                <a href="{% url 'cart' %}" class="btn btn-primary fw-bold px-4 shadow-sm">
-                    🛍️ View Cart
-                </a>
+    <!-- Reviews Section -->
+    <div class="reviews-section mt-5 bg-white p-4 rounded-4 shadow-sm">
+        <h3 class="border-bottom pb-3 mb-4">Customer Reviews</h3>
+
+        <!-- Review Statistics -->
+        <div class="review-stats row mb-4">
+            <div class="col-md-4 text-center">
+                <h4 class="text-success">{{ product.average_rating|floatformat:1 }} / 5</h4>
+                <div class="text-warning h3">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= product.average_rating|floatformat:0 %}
+                            ★
+                        {% else %}
+                            ☆
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <p class="text-muted">{{ product.feedback_set.count }} Reviews</p>
+            </div>
+            <div class="col-md-8">
+                {% for rating in product.rating_breakdown %}
+                <div class="progress-group mb-2">
+                    <div class="d-flex align-items-center">
+                        <span class="me-2">{{ rating.stars }} Star</span>
+                        <div class="progress flex-grow-1">
+                            <div class="progress-bar" role="progressbar" 
+                                style="width: {{ rating.percentage|default:'0' }}%; background-color: #28a745;"
+                                aria-valuenow="{{ rating.percentage }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100">
+                            </div>
+                        </div>
+                        <span class="ms-2 text-muted">{{ rating.percentage }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Review Form -->
+        <div class="review-form mb-4">
+            <h4 class="mb-3">Write a Review</h4>
+            <form id="reviewForm" method="POST" action="{% url 'feedback' product.id %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="reviewRating" class="form-label">Your Rating</label>
+                    <div class="star-rating">
+                        <input type="radio" name="rating" value="5" id="star5">
+                        <label for="star5">★</label>
+                        <input type="radio" name="rating" value="4" id="star4">
+                        <label for="star4">★</label>
+                        <input type="radio" name="rating" value="3" id="star3">
+                        <label for="star3">★</label>
+                        <input type="radio" name="rating" value="2" id="star2">
+                        <label for="star2">★</label>
+                        <input type="radio" name="rating" value="1" id="star1">
+                        <label for="star1">★</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="reviewText" class="form-label">Your Review</label>
+                    <textarea class="form-control" id="reviewText" name="review_text" rows="4" placeholder="Share your experience..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit Review</button>
+            </form>
+        </div>
+
+        <!-- Recent Reviews -->
+        <div class="recent-reviews">
+            <h4 class="mb-3">Recent Reviews</h4>
+            {% for feedback in product.feedback_set.all %}
+            <div class="review-card border-bottom pb-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="reviewer-info">
+                        <strong>{{ feedback.user.email }}</strong>
+                        <span class="text-muted ms-2">{{ feedback.submitted_at|timesince }} ago</span>
+                    </div>
+                    <div class="review-rating text-warning">
+                        {% for _ in "12345" %}
+                            {% if forloop.counter <= feedback.rating %}
+                                <span style="color: gold;">★</span>
+                            {% else %}
+                                <span style="color: gray;">☆</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <p>{{ feedback.message }}</p>
+            </div>
+            {% empty %}
+            <p class="text-muted">No reviews yet. Be the first to review!</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Image Zoom Modal -->
+<div class="modal fade" id="imageZoomModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <img src="{{ product.image.url }}" class="img-fluid" alt="{{ product.name }}">
             </div>
         </div>
     </div>
 </div>
 
-<!-- JavaScript for Quantity & Check Availability -->
 <script>
+
+
+    document.getElementById("add-to-cart-form").addEventListener("submit", function(event) {
+        let size = document.getElementById("product_size").value;
+        let quantity = document.getElementById("quantity").value;
+
+        if (!size) {
+            event.preventDefault();
+            alert("Please select a size before adding to the cart.");
+        } else {
+            document.getElementById("selected_size").value = size;
+            document.getElementById("selected_quantity").value = quantity;
+
+            // Dynamically update the form action with the selected size
+            this.action = `/add_to_cart/{{ product.id }}/${size}/`;
+        }
+    });
+
+    
     function increaseQuantity() {
         let qty = document.getElementById("quantity");
         qty.value = parseInt(qty.value) + 1;
@@ -95,89 +274,77 @@
         }
     }
 
-    document.getElementById("checkAvailabilityBtn").addEventListener("click", () => {
-        let startDate = document.getElementById("rental_start_date").value;
-        let endDate = document.getElementById("rental_end_date").value;
+    function addToCart(productId) {
+        alert("Item " + productId + " added to cart!");
+        window.location.href = "/cart?product_id=" + productId;
+    }
 
-        if (!startDate || !endDate) {
-            document.getElementById("availabilityResult").innerHTML = "<span class='text-danger'>Please select both start and end dates.</span>";
-            return;
+    function addToWishlist(productId) {
+        alert("Item " + productId + " added to wishlist!");
+        window.location.href = "/wishlist?product_id=" + productId;
+    }
+
+    // Add accessory to cart
+    function addAccessoryToCart(productId, sizeId) {
+    if (!sizeId) {
+        alert("This accessory is out of stock or has no size selected.");
+        return;
+    }
+
+    // Redirect to the proper Django route
+    window.location.href = `/add_to_cart/${productId}/${sizeId}/`;
+    }
+
+
+    function increaseQuantity() {
+    var quantityInput = document.getElementById("quantity");
+    quantityInput.value = parseInt(quantityInput.value) + 1;
+    }
+
+    function decreaseQuantity() {
+        var quantityInput = document.getElementById("quantity");
+        if (quantityInput.value > 1) {
+            quantityInput.value = parseInt(quantityInput.value) - 1;
         }
+    }
 
-        fetch("/check-availability/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify({
-                product_id: "{{ product.id }}",
-                rental_start_date: startDate,
-                rental_end_date: endDate
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.available) {
-                document.getElementById("availabilityResult").innerHTML = "<span class='text-success'>✅ Available for your selected dates!</span>";
-            } else {
-                document.getElementById("availabilityResult").innerHTML = "<span class='text-danger'>❌ Not available. Try different dates.</span>";
-            }
-        })
-        .catch(error => {
-            document.getElementById("availabilityResult").innerHTML = "<span class='text-danger'>⚠️ Error checking availability.</span>";
-        });
-    });
+    
+
+
 </script>
 
 <style>
-    /* Product Image Hover */
-    .product-image-container {
-        position: relative;
-        overflow: hidden;
-        border-radius: 12px;
-        transition: transform 0.3s ease-in-out;
+    /* Star Rating Styles */
+    .star-rating {
+        unicode-bidi: bidi-override;
+        direction: rtl;
+        text-align: left;
     }
-    .product-image-container:hover {
-        transform: scale(1.05);
+    .star-rating input {
+        display: none;
     }
-
-    /* Button Styling */
-    .btn {
-        border-radius: 10px;
-        transition: all 0.3s ease-in-out;
+    .star-rating label {
+        display: inline-block;
+        padding: 3px;
+        vertical-align: middle;
+        color: #ddd;
+        transition: color 0.2s;
+        cursor: pointer;
     }
-    .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    /* Quantity Selector */
-    .input-group .btn {
-        border-radius: 8px;
+    .star-rating input:checked ~ label,
+    .star-rating input:hover ~ label,
+    .star-rating label:hover {
+        color: #ffc107;
     }
 
-    /* Rental Date Inputs */
-    input[type="date"] {
-        border-radius: 8px;
-        padding: 10px;
-        border: 1px solid #333;
-    }
-
-    /* Availability Result */
-    #availabilityResult {
-        font-size: 1.2rem;
-    }
-
-    /* Mobile Responsiveness */
+    /* Responsive Adjustments */
     @media (max-width: 768px) {
-        .product-image {
-            max-width: 80%;
+        .product-gallery, .product-info {
+            text-align: center;
         }
-        .input-group {
-            width: 100% !important;
+        .additional-images {
+            justify-content: center !important;
         }
     }
 </style>
-
 {% endblock %}

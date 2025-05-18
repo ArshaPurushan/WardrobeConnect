@@ -1,27 +1,80 @@
-{% extends "base.html" %}
+{% extends "baseUser.html" %}
 
 {% block content %}
 <div class="container mt-4">
     <h2 class="text-center">💰 Payment for Booking #{{ booking.id }}</h2>
-    <p class="text-center text-muted">Total Amount: <strong>₹{{ booking.total_price }}</strong></p>
+    <p class="text-center text-muted">
+        Total Amount: <strong>₹{{ booking.total_price }}</strong> 
+        (Incl. Security Deposit: ₹{{ booking.security_deposit }})
+    </p>
 
     <div class="card shadow p-4 mt-4">
         <h4 class="mb-3">💳 Razorpay Payment</h4>
 
-        <!-- Razorpay Payment Button -->
-        <form id="razorpay-form">
-            <script src="https://checkout.razorpay.com/v1/checkout.js"
-                data-key="{{ razorpay_key_id }}"
-                data-amount="{{ payment_order.amount }}"
-                data-currency="INR"
-                data-order_id="{{ payment_order.id }}"
-                data-buttontext="Pay Now"
-                data-name="My Rental Service"
-                data-description="Payment for Rental Booking"
-                data-theme.color="#F37254"
-                data-callback_url="{% url 'confirm_order' booking.id %}">
-            </script>
-        </form>
+        {% if error %}
+            <div class="alert alert-danger text-center">❌ {{ error }}</div>
+        {% endif %}
+
+        {% if order %}
+            <button id="pay-button" class="btn btn-success w-100">Pay Now</button>
+        {% else %}
+            <p class="text-center text-danger">⚠️ Payment could not be initialized. Please try again later.</p>
+        {% endif %}
     </div>
 </div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+    var payButton = document.getElementById("pay-button");
+
+    if (payButton) {
+        payButton.addEventListener("click", function () {
+            payButton.innerText = "Processing...";
+            payButton.disabled = true;
+
+            var options = {
+                "key": "{{ razorpay_key_id }}",
+                "amount": "{{ order.amount }}",
+                "currency": "INR",
+                "name": "WardrobeConnect Rentals",
+                "description": "Secure Payment for Rental Booking",
+                "order_id": "{{ order.id }}",
+                "handler": function (response) {
+                    fetch("{% url 'confirm_order' booking.id %}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        },
+                        body: new URLSearchParams({
+                            "razorpay_payment_id": response.razorpay_payment_id,
+                            "razorpay_order_id": response.razorpay_order_id,
+                            "razorpay_signature": response.razorpay_signature
+                        })
+                    })
+                    .then(response => response.json()) // Ensure we parse JSON response
+                    .then(data => {
+                        if (data.success) {
+                            window.location.href = "{% url 'invoice' booking.id %}";// Redirect to invoice
+                        } else {
+                            alert("❌ " + data.error);
+                            location.reload();
+                        }
+                    })
+                    .catch(() => {
+                        alert("❌ Something went wrong. Please try again.");
+                        location.reload();
+                    });
+                },
+                "theme": { "color": "#F37254" }
+            };
+
+            var rzp = new Razorpay(options);
+            rzp.open();
+        });
+    }
+});
+
+</script>
 {% endblock %}

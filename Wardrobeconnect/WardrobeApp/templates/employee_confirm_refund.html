@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Inspect Returned Item</h2>
+
+    <div class="card p-4 mb-4">
+        <p><strong>Booking ID:</strong> {{ booking.id }}</p>
+        <p><strong>Customer:</strong> {{ booking.booking_name }} </p>
+        <p><strong>Product:</strong> {{ booking.product_size.product.name }} (Size: {{ booking.product_size.size }})</p>
+        <p><strong>Return Date:</strong> {{ booking.return_by }}</p>
+        <p><strong>Tracking Status:</strong> {{ booking.tracking_status }}</p>
+    </div>
+
+    <form method="POST" class="card p-4">
+        {% csrf_token %}
+
+        <div class="form-group mb-3">
+            <label for="refund_status"><strong>Refund Status:</strong></label>
+            <select name="refund_status" class="form-control" required>
+                <option value="approved" {% if booking.refund_status == 'approved' %}selected{% endif %}>Approve</option>
+                <option value="pending" {% if booking.refund_status == 'pending' %}selected{% endif %}>Pending</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="late_fee"><strong>Late Fee (₹):</strong></label>
+            <input type="number" name="late_fee" class="form-control" step="0.01" min="0" value="{{ booking.late_fee }}" placeholder="0.00">
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="note"><strong>Inspection Note:</strong></label>
+            <textarea name="note" rows="4" class="form-control" placeholder="Any comments on the return...">{{ booking.inspection_note }}</textarea>
+        </div>
+
+        <!-- Only show the rejection reason if the status is "Rejected" -->
+        <div class="form-group mb-3" id="rejection-reason" style="display: {% if booking.refund_status == 'rejected' %}block{% else %}none{% endif %};">
+            <label for="note"><strong>Rejection Reason:</strong></label>
+            <textarea name="note" rows="4" class="form-control" placeholder="Why are you rejecting the refund...">{{ booking.inspection_note }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit Inspection</button>
+        <a href="{% url 'employee_dashboard' %}" class="btn btn-secondary ml-2">Back</a>
+    </form>
+</div>
+
+<script>
+    // Toggle visibility of the rejection reason field based on selected refund status
+    document.querySelector('[name="refund_status"]').addEventListener('change', function () {
+        const rejectionReasonField = document.getElementById('rejection-reason');
+        if (this.value === 'rejected') {
+            rejectionReasonField.style.display = 'block';
+        } else {
+            rejectionReasonField.style.display = 'none';
+        }
+    });
+</script>
+{% endblock %}

@@ -1,99 +1,255 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}My Store{% endblock %}</title>
-
-    <!-- Bootstrap 5 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-
-    <!-- Font Awesome for Icons -->
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block page_title %}WardrobeConnect - Customer Dashboard{% endblock %}</title>
+    
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        body {
-            background-color: #f8f9fa;
+        :root {
+            --primary-color: #FF69B4;      /* Hot Pink */
+            --secondary-color: #9370DB;    /* Medium Purple */
+            --accent-color: #20B2AA;       /* Light Sea Green */
+            --background-color: #F8F4F9;   /* Soft Lavender */
+            --text-primary: #333333;       /* Dark Charcoal */
+            --text-secondary: #6C757D;     /* Muted Gray */
         }
-        .navbar-brand {
+
+        * {
+            transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Elegant Gradient Background */
+        .gradient-background {
+            background: linear-gradient(
+                45deg, 
+                var(--primary-color), 
+                var(--secondary-color), 
+                var(--accent-color)
+            );
+            background-size: 200% 200%;
+            animation: gradientShift 10s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Navigation Styles */
+        .navbar {
+            background-color: rgba(255,255,255,0.9);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .nav-icon {
+            color: var(--secondary-color);
+            position: relative;
+            margin: 0 10px;
+        }
+
+        .nav-icon:hover {
+            color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        .icon-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 0.6rem;
             font-weight: bold;
         }
-        .product-card {
-            transition: transform 0.2s;
+
+        /* Quick Access Cards */
+        .quick-access-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
         }
-        .product-card:hover {
-            transform: scale(1.05);
+
+        .quick-access-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .quick-access-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-10px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
+        .quick-access-card .icon {
+            font-size: 3rem;
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+        }
+
+        .quick-access-card:hover .icon {
+            color: var(--primary-color);
+        }
+
+        /* Profile Dropdown */
+        .dropdown-menu {
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .quick-access-container {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 
-    {% block extra_css %}{% endblock %}
+    {% block head_extra %}{% endblock %}
 </head>
 <body>
-
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">🛍️ MyStore</a>
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="{% url 'customer_dashboard' %}">
+                <img src="{% static 'img/logo2.jpg' %}" alt="WardrobeConnect Logo" height="50">
+            </a>
             
-            <!-- Toggle Button for Mobile -->
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+            <!-- Responsive Search and Icons Container -->
+            <div class="d-flex align-items-center ms-auto">
+                <!-- Search Trigger for Mobile -->
+                <button class="btn btn-outline-secondary me-3 d-md-none" type="button" data-bs-toggle="modal" data-bs-target="#searchModal">
+                    <i class="fas fa-search"></i>
+                </button>
 
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'home' %}">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'products' %}">Products</a>
-                    </li>
-                </ul>
+                <!-- Navigation Icons -->
+                <div class="d-flex align-items-center">
+                    <!-- Chatbot -->
+                    <a href="{% url 'chatbot' %}" class="nav-icon position-relative" title="Chatbot">
+                        <i class="fas fa-robot"></i>
+                    </a>
 
-                <!-- Search Form -->
-                <form action="{% url 'search' %}" method="GET" class="d-flex ms-3">
-                    <input type="text" name="q" class="form-control me-2" placeholder="Search..." required>
-                    <button type="submit" class="btn btn-light">🔍</button>
-                </form>
+                    <!-- Wishlist -->
+            <!--       <a href="{% url 'wishlist' %}" class="nav-icon position-relative" title="Wishlist">
+                        <i class="fas fa-heart"></i>
+                        <span class="icon-badge">{{ wishlist_count|default:0 }}</span>
+                    </a>-->
 
-                <!-- User Authentication Links -->
-                <ul class="navbar-nav ms-3">
-                    {% if user.is_authenticated %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown">
-                                👤 {{ user.username }}
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'profile' %}">Profile</a></li>
-                                <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
-                            </ul>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">Login</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'register' %}">Register</a>
-                        </li>
-                    {% endif %}
-                </ul>
+                    <!-- Profile Dropdown -->
+                    <div class="dropdown">
+                        <a href="#" class="nav-link dropdown-toggle p-0" data-bs-toggle="dropdown">
+                            <img src="{{ user.profile_picture.url|default:'/static/img/default-profile.jpg' }}" 
+                                 class="rounded-circle" width="40" height="40" alt="Profile">
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'profile_management' %}">
+                                <i class="fas fa-user-cog me-2"></i> Profile Settings
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'rental_history' %}">
+                                <i class="fas fa-history me-2"></i> Rental History
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="{% url 'logout' %}">
+                                <i class="fas fa-sign-out-alt me-2"></i> Logout
+                            </a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Cart -->
+        <!--           <a href="{% url 'cart' %}" class="nav-icon position-relative ms-3" title="Cart">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="icon-badge">{{ cart_count|default:0 }}</span>
+                    </a>--> 
+                </div>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <div class="container mt-4">
-        {% block content %}{% endblock %}
+    <!-- Search Modal for Mobile -->
+    <div class="modal fade" id="searchModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Search WardrobeConnect</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{% url 'search' %}" method="GET" class="d-flex">
+                        <input class="form-control me-2" type="search" placeholder="Search items" name="query">
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="bg-primary text-white text-center py-3 mt-5">
-        <p>&copy; 2025 MyStore | All Rights Reserved</p>
-    </footer>
+    <!-- Main Content Area with Gradient Background -->
+    <div class="container-fluid gradient-background py-4">
+        <div class="container">
+            {% block content %}
+            <!-- Page-specific content will be inserted here -->
+            {% endblock %}
+        </div>
+    </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap 5.3 JS and Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
-    {% block extra_js %}{% endblock %}
+    {% block scripts %}
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Dynamic badge update
+        function updateBadges() {
+            fetch("{% url 'customer_dashboard' %}")
+                .then(response => response.json())
+                .then(data => {
+                    document.querySelectorAll('.icon-badge').forEach(badge => {
+                        badge.textContent = data.badge_counts || 0;
+                    });
+                })
+                .catch(error => console.error('Badge update failed:', error));
+        }
+
+        // Update badges every 5 minutes
+        setInterval(updateBadges, 300000);
+
+        // Quick access card navigation
+        document.querySelectorAll(".quick-access-card").forEach(card => {
+            card.addEventListener("click", function() {
+                window.location.href = this.dataset.url;
+            });
+        });
+    });
+    </script>
+    {% endblock %}
 </body>
 </html>

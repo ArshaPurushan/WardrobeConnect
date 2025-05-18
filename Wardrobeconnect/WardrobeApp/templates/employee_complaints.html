@@ -5,7 +5,7 @@
     <h2 class="mb-4">⚠️ Customer Complaints</h2>
 
     {% if complaints %}
-        <table class="table table-bordered">
+        <table class="table table-bordered table-hover">
             <thead class="thead-dark">
                 <tr>
                     <th>Customer</th>
@@ -18,25 +18,35 @@
                 {% for complaint in complaints %}
                 <tr>
                     <td>
-                        {% if complaint.customer %}
-                            {{ complaint.customer.username }}
+                        {% if complaint.user %}
+                            {{ complaint.user.email }}
                         {% else %}
-                            Unknown
+                            <em>Unknown</em>
                         {% endif %}
                     </td>
-                    <td>{{ complaint.description }}</td>
                     <td>
-                        {% if complaint.status == "Resolved" %}
-                            <span class="badge badge-success">Resolved</span>
-                        {% else %}
+                        <a href="{% url 'employee_view_complaint' complaint.id %}">
+                            {{ complaint.message|truncatechars:50 }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if complaint.status == 0 %}
                             <span class="badge badge-warning">Pending</span>
+                        {% elif complaint.status == 1 %}
+                            <span class="badge badge-success">Resolved</span>
+                        {% elif complaint.status == 2 %}
+                            <span class="badge badge-danger">Dismissed</span>
+                        {% else %}
+                            <span class="badge badge-secondary">Unknown</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if complaint.status != "Resolved" %}
+                        {% if complaint.status == 0 %}
                             <a href="{% url 'resolve_complaints' complaint.id %}" class="btn btn-success btn-sm">✔ Resolve</a>
-                        {% else %}
+                        {% elif complaint.status == 1 %}
                             <button class="btn btn-secondary btn-sm" disabled>✔ Resolved</button>
+                        {% elif complaint.status == 2 %}
+                            <button class="btn btn-secondary btn-sm" disabled>✖ Dismissed</button>
                         {% endif %}
                     </td>
                 </tr>
